@@ -1,9 +1,14 @@
 package com.mileowl.tracker
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -41,6 +46,7 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
+            requestBatteryOptimizationExemption()
             ActivityTransitionHelper.registerTransitions(this)
         }
     }
@@ -121,10 +127,33 @@ class MainActivity : ComponentActivity() {
             if (!hasBackground) {
                 backgroundLocationRequest.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
             } else {
+                requestBatteryOptimizationExemption()
                 ActivityTransitionHelper.registerTransitions(this)
             }
         } else {
+            requestBatteryOptimizationExemption()
             ActivityTransitionHelper.registerTransitions(this)
+        }
+    }
+
+    private fun requestBatteryOptimizationExemption() {
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+            try {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            } catch (_: Exception) {
+                // Some OEMs don't support this intent — fail silently
+            }
+        }
+    }
+
+    companion object {
+        fun isIgnoringBatteryOptimizations(context: Context): Boolean {
+            val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+            return pm.isIgnoringBatteryOptimizations(context.packageName)
         }
     }
 }

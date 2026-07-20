@@ -1,6 +1,6 @@
 # 🦉 MileOwl
 
-**Free, open-source Android mileage tracker** with automatic trip detection, business/personal classification, and IRS-compliant CSV export.
+**Free Android mileage tracker** with automatic trip detection, business/personal classification, and IRS-compliant CSV export.
 
 No subscriptions. No ads. All data stays on your device.
 
@@ -141,6 +141,6 @@ app/src/main/java/com/mileowl/tracker/
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+© 2026 PSA Imports LLC. All rights reserved.
 
 Built with 🦉 for PSA Imports LLC

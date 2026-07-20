@@ -260,6 +260,64 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
+        // Battery Optimization Section
+        SectionHeader("Battery")
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val isExempt = remember {
+                    mutableStateOf(MainActivity.isIgnoringBatteryOptimizations(context))
+                }
+                // Refresh on resume
+                val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+                androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+                    val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                        if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                            isExempt.value = MainActivity.isIgnoringBatteryOptimizations(context)
+                        }
+                    }
+                    lifecycleOwner.lifecycle.addObserver(observer)
+                    onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Battery Optimization",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = if (isExempt.value) "Unrestricted — trips will be detected reliably"
+                            else "Restricted — trips may be missed in low power mode",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isExempt.value) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.error
+                        )
+                    }
+                    if (!isExempt.value) {
+                        TextButton(onClick = {
+                            try {
+                                val intent = android.content.Intent(
+                                    android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                                ).apply {
+                                    data = android.net.Uri.parse("package:${context.packageName}")
+                                }
+                                context.startActivity(intent)
+                            } catch (_: Exception) { }
+                        }) {
+                            Text("Fix")
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
         // About section
         SectionHeader("About")
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -277,7 +335,7 @@ fun SettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Built with ❤️ for PSA Imports LLC",
+                    text = "© 2026 PSA Imports LLC. All rights reserved.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
