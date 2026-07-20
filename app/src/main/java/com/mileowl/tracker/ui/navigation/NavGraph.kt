@@ -29,6 +29,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.mileowl.tracker.ui.frequentdrives.FrequentDrivesScreen
 import com.mileowl.tracker.ui.home.HomeScreen
 import com.mileowl.tracker.ui.locations.SavedLocationsScreen
 import com.mileowl.tracker.ui.report.ReportScreen
@@ -43,6 +44,7 @@ object NavRoutes {
     const val LOCATIONS = "locations"
     const val REPORT = "report"
     const val SETTINGS = "settings"
+    const val FREQUENT_DRIVES = "frequent_drives"
 
     fun tripDetail(tripId: Long) = "trip_detail/$tripId"
 }
@@ -115,6 +117,9 @@ fun MileOwlNavGraph() {
                     },
                     onNavigateToTripDetail = { tripId ->
                         navController.navigate(NavRoutes.tripDetail(tripId))
+                    },
+                    onNavigateToFrequentDrives = {
+                        navController.navigate(NavRoutes.FREQUENT_DRIVES)
                     }
                 )
             }
@@ -148,6 +153,15 @@ fun MileOwlNavGraph() {
 
             composable(NavRoutes.SETTINGS) {
                 SettingsScreen()
+            }
+
+            composable(NavRoutes.FREQUENT_DRIVES) {
+                FrequentDrivesScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToTripDetail = { tripId ->
+                        navController.navigate(NavRoutes.tripDetail(tripId))
+                    }
+                )
             }
         }
     }

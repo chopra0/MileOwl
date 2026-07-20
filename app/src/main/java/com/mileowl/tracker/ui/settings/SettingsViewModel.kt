@@ -5,7 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mileowl.tracker.MileOwlApp
 import com.mileowl.tracker.data.model.TripClassification
+import com.mileowl.tracker.data.model.Vehicle
 import com.mileowl.tracker.service.ActivityTransitionHelper
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -14,10 +16,7 @@ import kotlinx.coroutines.launch
 
 data class SettingsUiState(
     val irsRate: Double = 0.70,
-    val vehicleName: String = "",
-    val vehicleYear: String = "",
-    val vehicleMake: String = "",
-    val vehicleModel: String = "",
+    val vehicles: List<Vehicle> = emptyList(),
     val autoDetectionEnabled: Boolean = true,
     val highAccuracy: Boolean = true,
     val defaultClassification: TripClassification = TripClassification.UNCLASSIFIED
@@ -26,29 +25,19 @@ data class SettingsUiState(
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val app = application as MileOwlApp
+    private val repo = app.container.tripRepository
     private val prefs = app.container.preferencesManager
 
     val uiState: StateFlow<SettingsUiState> = combine(
         prefs.irsRateFlow,
-        prefs.vehicleNameFlow,
-        prefs.vehicleYearFlow,
-        prefs.vehicleMakeFlow,
-        combine(
-            prefs.vehicleModelFlow,
-            prefs.autoDetectionEnabledFlow,
-            prefs.highAccuracyFlow,
-            prefs.defaultClassificationFlow
-        ) { model, auto, accuracy, classification ->
-            Triple(model, Triple(auto, accuracy, classification), Unit)
-        }
-    ) { irsRate, name, year, make, (model, extras, _) ->
-        val (auto, accuracy, classification) = extras
+        repo.getAllVehicles(),
+        prefs.autoDetectionEnabledFlow,
+        prefs.highAccuracyFlow,
+        prefs.defaultClassificationFlow
+    ) { irsRate, vehicles, auto, accuracy, classification ->
         SettingsUiState(
             irsRate = irsRate,
-            vehicleName = name,
-            vehicleYear = year,
-            vehicleMake = make,
-            vehicleModel = model,
+            vehicles = vehicles,
             autoDetectionEnabled = auto,
             highAccuracy = accuracy,
             defaultClassification = classification
@@ -60,20 +49,30 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { prefs.setIrsRate(parsed) }
     }
 
-    fun setVehicleName(name: String) {
-        viewModelScope.launch { prefs.setVehicleName(name) }
+    fun addVehicle(name: String, year: String, make: String, model: String) {
+        viewModelScope.launch {
+            val vehicle = Vehicle(name = name, year = year, make = make, model = model)
+            repo.insertVehicle(vehicle)
+        }
     }
 
-    fun setVehicleYear(year: String) {
-        viewModelScope.launch { prefs.setVehicleYear(year) }
+    fun updateVehicle(vehicle: Vehicle) {
+        viewModelScope.launch {
+            repo.updateVehicle(vehicle)
+        }
     }
 
-    fun setVehicleMake(make: String) {
-        viewModelScope.launch { prefs.setVehicleMake(make) }
+    fun deleteVehicle(vehicle: Vehicle) {
+        viewModelScope.launch {
+            repo.deleteVehicle(vehicle)
+        }
     }
 
-    fun setVehicleModel(model: String) {
-        viewModelScope.launch { prefs.setVehicleModel(model) }
+    fun setDefaultVehicle(vehicleId: Long) {
+        viewModelScope.launch {
+            repo.clearDefaultVehicle()
+            repo.setDefaultVehicle(vehicleId)
+        }
     }
 
     fun setAutoDetectionEnabled(enabled: Boolean) {

@@ -20,5 +20,10 @@ data class Trip(
     val classification: TripClassification = TripClassification.UNCLASSIFIED,
     val purpose: String? = null,
     val clientName: String? = null,
-    val isActive: Boolean = false
+    val isActive: Boolean = false,
+    // New fields v2
+    val tripPurpose: TripPurpose? = null,
+    val parkingCost: Double = 0.0,
+    val tollsCost: Double = 0.0,
+    val vehicleId: Long? = null
 )

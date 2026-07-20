@@ -1,6 +1,7 @@
 package com.mileowl.tracker.ui.tripdetail
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,22 +13,47 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.BookmarkAdd
+import androidx.compose.material.icons.filled.BusinessCenter
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Construction
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Domain
+import androidx.compose.material.icons.filled.Flight
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocalHospital
+import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
@@ -36,6 +62,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,17 +72,40 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mileowl.tracker.data.model.TripClassification
+import com.mileowl.tracker.data.model.TripPurpose
+import com.mileowl.tracker.data.model.Vehicle
 import com.mileowl.tracker.ui.theme.BusinessGreen
 import com.mileowl.tracker.ui.theme.PersonalBlue
 import com.mileowl.tracker.ui.theme.UnclassifiedGray
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+@Composable
+fun purposeIcon(purpose: TripPurpose): ImageVector = when (purpose) {
+    TripPurpose.BUSINESS -> Icons.Filled.BusinessCenter
+    TripPurpose.BETWEEN_OFFICES -> Icons.Filled.Domain
+    TripPurpose.CUSTOMER_VISIT -> Icons.Filled.LocationOn
+    TripPurpose.MEETING -> Icons.Filled.Groups
+    TripPurpose.ERRAND_SUPPLIES -> Icons.Filled.ShoppingCart
+    TripPurpose.MEAL_ENTERTAIN -> Icons.Filled.Restaurant
+    TripPurpose.TEMPORARY_SITE -> Icons.Filled.Construction
+    TripPurpose.AIRPORT_TRAVEL -> Icons.Filled.Flight
+    TripPurpose.DELIVERY -> Icons.Filled.LocalShipping
+    TripPurpose.PERSONAL -> Icons.Filled.Home
+    TripPurpose.COMMUTE -> Icons.Filled.DirectionsCar
+    TripPurpose.MEDICAL -> Icons.Filled.LocalHospital
+    TripPurpose.CHARITY -> Icons.Filled.VolunteerActivism
+    TripPurpose.MOVING -> Icons.Filled.LocalShipping
+    TripPurpose.OTHER -> Icons.Filled.MoreHoriz
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,6 +116,8 @@ fun TripDetailScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showPurposeSheet by remember { mutableStateOf(false) }
+    var showSavedSnackbar by remember { mutableStateOf(false) }
 
     LaunchedEffect(tripId) {
         viewModel.loadTrip(tripId)
@@ -73,6 +125,12 @@ fun TripDetailScreen(
 
     LaunchedEffect(state.isDeleted) {
         if (state.isDeleted) onNavigateBack()
+    }
+
+    LaunchedEffect(state.savedAsFrequentDrive) {
+        if (state.savedAsFrequentDrive) {
+            showSavedSnackbar = true
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -121,6 +179,41 @@ fun TripDetailScreen(
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
+
+            // Route summary card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Filled.Route,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Route: ${String.format("%.1f mi", trip.distanceMiles)}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "${trip.startAddress ?: "Unknown"} → ${trip.endAddress ?: "Unknown"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
 
             // Stats row
             Row(
@@ -212,11 +305,6 @@ fun TripDetailScreen(
 
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 classifications.forEachIndexed { index, classification ->
-                    val color = when (classification) {
-                        TripClassification.BUSINESS -> BusinessGreen
-                        TripClassification.PERSONAL -> PersonalBlue
-                        TripClassification.UNCLASSIFIED -> UnclassifiedGray
-                    }
                     SegmentedButton(
                         shape = SegmentedButtonDefaults.itemShape(
                             index = index,
@@ -230,7 +318,59 @@ fun TripDetailScreen(
                 }
             }
 
-            // Purpose field
+            // Purpose category picker
+            Text(
+                text = "Trip Purpose",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showPurposeSheet = true }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (trip.tripPurpose != null) {
+                        Icon(
+                            imageVector = purposeIcon(trip.tripPurpose),
+                            contentDescription = null,
+                            tint = when (trip.tripPurpose.toClassification()) {
+                                TripClassification.BUSINESS -> BusinessGreen
+                                TripClassification.PERSONAL -> PersonalBlue
+                                else -> UnclassifiedGray
+                            },
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = trip.tripPurpose.label,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f)
+                        )
+                    } else {
+                        Text(
+                            text = "Select a purpose...",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Icon(
+                        Icons.Filled.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            // Notes field (formerly "Business Purpose")
             var purpose by remember(trip.purpose) { mutableStateOf(trip.purpose ?: "") }
             OutlinedTextField(
                 value = purpose,
@@ -238,7 +378,7 @@ fun TripDetailScreen(
                     purpose = it
                     viewModel.updatePurpose(it)
                 },
-                label = { Text("Business Purpose") },
+                label = { Text("Notes") },
                 placeholder = { Text("e.g., Client meeting, Delivery, Supply run") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
@@ -257,6 +397,79 @@ fun TripDetailScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
+
+            // Parking & Tolls — side by side
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                var parkingText by remember(trip.parkingCost) {
+                    mutableStateOf(
+                        if (trip.parkingCost > 0) String.format("%.2f", trip.parkingCost) else ""
+                    )
+                }
+                OutlinedTextField(
+                    value = parkingText,
+                    onValueChange = {
+                        parkingText = it
+                        viewModel.updateParkingCost(it)
+                    },
+                    label = { Text("Parking (\$)") },
+                    prefix = { Text("$") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+
+                var tollsText by remember(trip.tollsCost) {
+                    mutableStateOf(
+                        if (trip.tollsCost > 0) String.format("%.2f", trip.tollsCost) else ""
+                    )
+                }
+                OutlinedTextField(
+                    value = tollsText,
+                    onValueChange = {
+                        tollsText = it
+                        viewModel.updateTollsCost(it)
+                    },
+                    label = { Text("Tolls (\$)") },
+                    prefix = { Text("$") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            // Vehicle selector
+            Text(
+                text = "Vehicle",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            VehicleDropdown(
+                vehicles = state.vehicles,
+                selectedVehicleId = trip.vehicleId,
+                onVehicleSelected = { viewModel.updateVehicleId(it) }
+            )
+
+            // Save as Frequent Drive
+            OutlinedButton(
+                onClick = { viewModel.saveAsFrequentDrive() },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.savedAsFrequentDrive
+            ) {
+                Icon(
+                    Icons.Filled.BookmarkAdd,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    if (state.savedAsFrequentDrive) "Saved as Frequent Drive ✓"
+                    else "Save as Frequent Drive"
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -285,11 +498,145 @@ fun TripDetailScreen(
             }
         )
     }
+
+    // Purpose bottom sheet
+    if (showPurposeSheet) {
+        val sheetState = rememberModalBottomSheetState()
+        ModalBottomSheet(
+            onDismissRequest = { showPurposeSheet = false },
+            sheetState = sheetState
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 32.dp)
+            ) {
+                Text(
+                    text = "Select Purpose",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+                )
+
+                HorizontalDivider()
+
+                TripPurpose.entries.forEach { purposeItem ->
+                    val isSelected = state.trip?.tripPurpose == purposeItem
+                    val purposeColor = when (purposeItem.toClassification()) {
+                        TripClassification.BUSINESS -> BusinessGreen
+                        TripClassification.PERSONAL -> PersonalBlue
+                        else -> UnclassifiedGray
+                    }
+
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                text = purposeItem.label,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        leadingContent = {
+                            Icon(
+                                imageVector = purposeIcon(purposeItem),
+                                contentDescription = null,
+                                tint = purposeColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        },
+                        trailingContent = {
+                            Text(
+                                text = purposeItem.toClassification().name.lowercase()
+                                    .replaceFirstChar { it.uppercase() },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = purposeColor
+                            )
+                        },
+                        modifier = Modifier.clickable {
+                            viewModel.updateTripPurpose(purposeItem)
+                            showPurposeSheet = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun VehicleDropdown(
+    vehicles: List<Vehicle>,
+    selectedVehicleId: Long?,
+    onVehicleSelected: (Long?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedVehicle = vehicles.firstOrNull { it.id == selectedVehicleId }
+    val displayText = selectedVehicle?.let {
+        buildString {
+            append(it.name)
+            if (it.year.isNotBlank() || it.make.isNotBlank() || it.model.isNotBlank()) {
+                append(" (")
+                listOf(it.year, it.make, it.model)
+                    .filter { s -> s.isNotBlank() }
+                    .joinTo(this, " ")
+                append(")")
+            }
+        }
+    } ?: "No vehicle selected"
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = displayText,
+            onValueChange = {},
+            readOnly = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor()
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("None") },
+                onClick = {
+                    onVehicleSelected(null)
+                    expanded = false
+                }
+            )
+            vehicles.forEach { vehicle ->
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(vehicle.name)
+                            if (vehicle.year.isNotBlank() || vehicle.make.isNotBlank() || vehicle.model.isNotBlank()) {
+                                Text(
+                                    text = listOf(vehicle.year, vehicle.make, vehicle.model)
+                                        .filter { it.isNotBlank() }
+                                        .joinToString(" "),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    },
+                    onClick = {
+                        onVehicleSelected(vehicle.id)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
 }
 
 @Composable
 private fun DetailStat(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     value: String,
     label: String
 ) {

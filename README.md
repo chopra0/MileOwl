@@ -1,166 +1,146 @@
-# 🦉 MileOwl — IRS-Compliant Mileage Tracker
+# 🦉 MileOwl
 
-A free, open-source Android app for tracking business mileage with automatic trip detection. Built for small business owners who need IRS-compliant mileage logs without paying monthly subscription fees.
+**Free, open-source Android mileage tracker** with automatic trip detection, business/personal classification, and IRS-compliant CSV export.
+
+No subscriptions. No ads. All data stays on your device.
 
 ## Features
 
 ### Automatic Trip Detection
-- Uses Android Activity Recognition API to detect when you start/stop driving
+- Uses Android Activity Recognition API to detect when you're driving
 - Background GPS tracking via foreground service with live distance notification
-- Zero manual effort — just drive and MileOwl handles the rest
-- Manual trip start/stop button for edge cases
+- Re-registers activity transitions after device reboot
 
-### Trip Classification
-- Swipe right → **Business** / Swipe left → **Personal** (on trip list)
-- Add business purpose and client/destination for each trip
-- Default classification option in settings
+### Trip Management
+- **Swipe to classify**: Swipe right for Business, left for Personal
+- **Purpose categories**: Business, Customer Visit, Meeting, Delivery, Errand/Supplies, and more
+- Auto-maps purpose to IRS classification
+- Add notes and client/destination names for each trip
+- Track parking costs and tolls per trip
 
-### IRS-Compliant Reports
-- Export CSV reports with all IRS-required fields:
-  - Date, start/end addresses, business purpose, miles, duration, classification
-- Summary section with total business miles and deduction amount
-- Date range filtering
-- Share via email, Google Drive, or any Android share target
+### Multi-Vehicle Support
+- Manage multiple vehicles (e.g., business Telluride vs personal Mazda)
+- Set a default vehicle for new trips
+- Filter trips and reports by vehicle
+
+### Frequent Drives
+- Save common routes as templates
+- One-tap trip logging from a template
+- Stores start/end locations, estimated distance, and default purpose
 
 ### Dashboard
-- Current month stats: business miles, personal miles, total trips
-- Year-to-date business miles and IRS deduction calculation
-- Live tracking indicator
-- Recent trips at a glance
+- Monthly business/personal miles and trip counts
+- Year-to-date business miles and IRS deduction total
+- Real-time tracking status indicator
+- Quick-access recent trips
+
+### IRS-Compliant Export
+- CSV report with all IRS-required fields:
+  - Date, start/end addresses, purpose category, business notes, client/destination
+  - Miles, duration, classification, IRS rate, deduction amount
+  - Parking costs, tolls, vehicle name
+- Filter by date range
+- Share via email, Google Drive, or any Android share target
 
 ### Saved Locations
-- Save frequently visited locations (home, office, client sites)
-- Trips auto-tagged when starting/ending near a saved location
-- Customizable detection radius per location
-
-### Settings
-- Configurable IRS mileage rate (default: $0.70/mile for 2026)
-- Vehicle information for report headers
-- Auto-detection toggle
-- GPS accuracy preference
-- Default trip classification
+- Tag frequently visited places (home, office, client sites)
+- Auto-recognize when trips start/end near saved locations
+- Configurable radius for each location
 
 ## Tech Stack
 
-- **Language:** Kotlin
-- **UI:** Jetpack Compose + Material 3
-- **Architecture:** MVVM with ViewModels
-- **Database:** Room (local SQLite)
-- **Location:** Google Play Services FusedLocationProviderClient
-- **Activity Detection:** Activity Recognition Transition API
-- **Preferences:** DataStore Preferences
-- **Navigation:** Jetpack Navigation Compose
-- **Min SDK:** 26 (Android 8.0)
+- **Language**: Kotlin
+- **UI**: Jetpack Compose + Material 3
+- **Architecture**: MVVM with ViewModels
+- **Database**: Room (SQLite)
+- **Preferences**: DataStore
+- **Location**: FusedLocationProviderClient
+- **Activity Detection**: Activity Recognition Transition API
+- **DI**: Manual (AppContainer pattern — no Hilt/Dagger)
 
-## Build Instructions
+## Build & Install
 
 ### Prerequisites
-- Android Studio Hedgehog (2023.1.1) or newer
-- JDK 17
+- Android Studio Hedgehog (2023.1.1) or later
 - Android SDK 35
+- JDK 17
 
 ### Steps
-
 1. Clone the repository:
-```bash
-git clone https://github.com/YOUR_USERNAME/MileOwl.git
-cd MileOwl
-```
+   ```bash
+   git clone https://github.com/chopra0/MileOwl.git
+   ```
+2. Open in Android Studio
+3. Sync Gradle
+4. Run on device or emulator (API 26+)
 
-2. Open in Android Studio or build from command line:
-```bash
-# Generate Gradle wrapper (if not present)
-gradle wrapper --gradle-version 8.7
+### Optional: Google Maps Route View
+To enable the route map on trip details:
+1. Get a [Google Maps API key](https://developers.google.com/maps/documentation/android-sdk/get-api-key)
+2. Add to `local.properties`: `MAPS_API_KEY=your_key_here`
+3. Uncomment the maps-compose dependency in `app/build.gradle.kts`
 
-# Build debug APK
-./gradlew assembleDebug
-```
+## Android Permissions
 
-3. Install on your device:
-```bash
-./gradlew installDebug
-```
-
-### First Launch
-1. Grant all requested permissions (location, activity recognition, notifications)
-2. For background location: Go to Settings → Apps → MileOwl → Permissions → Location → "Allow all the time"
-3. Go to Settings tab and enter your vehicle info
-4. Start driving — MileOwl will auto-detect trips
+| Permission | Purpose |
+|---|---|
+| `ACCESS_FINE_LOCATION` | GPS tracking during trips |
+| `ACCESS_COARSE_LOCATION` | Approximate location fallback |
+| `ACCESS_BACKGROUND_LOCATION` | Track trips when app is backgrounded |
+| `ACTIVITY_RECOGNITION` | Auto-detect vehicle activity |
+| `FOREGROUND_SERVICE` | Persistent tracking notification |
+| `RECEIVE_BOOT_COMPLETED` | Re-register activity detection after reboot |
+| `POST_NOTIFICATIONS` | Tracking status notifications (Android 13+) |
 
 ## IRS Compliance Notes
 
-The IRS requires the following for each business trip to claim the standard mileage deduction:
+The IRS requires "contemporaneous" mileage records — meaning you should record trips at or near the time they occur. MileOwl handles this automatically via GPS.
 
-| Field | MileOwl Coverage |
-|-------|-----------------|
-| **Date of trip** | ✅ Auto-recorded |
-| **Destination** | ✅ Auto-geocoded from GPS |
-| **Business purpose** | ⚠️ User must enter after trip |
-| **Miles driven** | ✅ Auto-calculated from GPS |
-| **Total miles for year** | ✅ YTD dashboard + report |
+**Required fields per IRS Publication 463:**
+- Date of the trip
+- Destination (city, town, or area)
+- Business purpose
+- Miles driven
 
-**Important:** You must classify each trip and add a business purpose for full IRS compliance. The app reminds you of unclassified trips on the Reports screen.
+MileOwl captures all four automatically and includes them in the CSV export.
 
-### §179 Vehicle Deduction
-If you're using this vehicle primarily for business (like a delivery vehicle for your LLC), keep your business use percentage above 50% to qualify for §179 deductions. MileOwl's reports show your business vs personal mileage ratio.
-
-## Permissions
-
-| Permission | Why |
-|-----------|-----|
-| `ACCESS_FINE_LOCATION` | GPS tracking during trips |
-| `ACCESS_BACKGROUND_LOCATION` | Track trips when app is in background |
-| `ACTIVITY_RECOGNITION` | Auto-detect when driving starts/stops |
-| `FOREGROUND_SERVICE` | Keep GPS running during active trip |
-| `POST_NOTIFICATIONS` | Show tracking notification |
-| `RECEIVE_BOOT_COMPLETED` | Re-register activity detection after reboot |
-
-## Privacy
-
-- **All data stays on your device** — no cloud sync, no analytics, no tracking
-- Location data is stored locally in an SQLite database
-- CSV exports are generated locally and shared only when you explicitly choose to
-- No internet connection required (except for reverse geocoding addresses)
+**2026 IRS Standard Mileage Rate**: $0.70/mile (configurable in Settings)
 
 ## Project Structure
 
 ```
 app/src/main/java/com/mileowl/tracker/
-├── MileOwlApp.kt              # Application + DI container
-├── MainActivity.kt            # Entry point + permission handling
+├── MileOwlApp.kt          # Application + DI container
+├── MainActivity.kt         # Permission flow + entry point
 ├── data/
-│   ├── model/                  # Trip, LocationPoint, SavedLocation, TripClassification
-│   ├── db/                     # Room database, DAOs, TypeConverters
-│   └── repository/             # TripRepository
+│   ├── model/              # Trip, Vehicle, FrequentDrive, TripPurpose, etc.
+│   ├── db/                 # Room database, DAOs, migrations
+│   └── repository/         # TripRepository
 ├── service/
-│   ├── TripTrackingService.kt  # Foreground service for GPS tracking
-│   ├── ActivityTransition*.kt  # Auto-detect driving
-│   └── BootReceiver.kt        # Re-register after reboot
+│   ├── TripTrackingService.kt      # Foreground GPS service
+│   ├── ActivityTransitionHelper.kt  # Activity Recognition setup
+│   ├── ActivityTransitionReceiver.kt # Broadcast receiver
+│   └── BootReceiver.kt             # Re-register on boot
 ├── ui/
-│   ├── theme/                  # Material 3 theme (teal/owl)
-│   ├── navigation/             # Bottom nav + routes
-│   ├── home/                   # Dashboard
-│   ├── trips/                  # Trip list with swipe gestures
-│   ├── tripdetail/             # Trip editing
-│   ├── locations/              # Saved locations management
-│   ├── report/                 # CSV export + stats
-│   └── settings/               # App configuration
+│   ├── theme/              # Material 3 colors, typography
+│   ├── navigation/         # NavGraph + bottom navigation
+│   ├── home/               # Dashboard
+│   ├── trips/              # Trip list with swipe classify
+│   ├── tripdetail/         # Trip detail with purpose picker
+│   ├── locations/          # Saved locations management
+│   ├── frequentdrives/     # Frequent drive templates
+│   ├── report/             # IRS report generation
+│   └── settings/           # App settings + vehicle management
 └── util/
-    ├── Constants.kt
+    ├── CsvExporter.kt      # IRS-compliant CSV generation
     ├── DistanceCalculator.kt
     ├── GeocoderHelper.kt
     ├── PreferencesManager.kt
-    └── CsvExporter.kt
+    └── Constants.kt
 ```
 
 ## License
 
-MIT License — see [LICENSE](LICENSE)
+MIT License — see [LICENSE](LICENSE) for details.
 
-## Contributing
-
-Pull requests welcome. For major changes, open an issue first.
-
----
-
-*Built by a 🦉 for PSA Imports LLC*
+Built with 🦉 for PSA Imports LLC

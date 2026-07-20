@@ -283,9 +283,11 @@ private fun TripListItem(trip: Trip, onClick: () -> Unit) {
                         append(dateFormat.format(Date(trip.startTime)))
                         append(" • ")
                         append(timeFormat.format(Date(trip.startTime)))
-                        if (trip.purpose != null) {
+                        // Show tripPurpose label if available, else fall back to free-text purpose
+                        val purposeLabel = trip.tripPurpose?.label ?: trip.purpose
+                        if (purposeLabel != null) {
                             append(" • ")
-                            append(trip.purpose)
+                            append(purposeLabel)
                         }
                     },
                     style = MaterialTheme.typography.labelSmall,

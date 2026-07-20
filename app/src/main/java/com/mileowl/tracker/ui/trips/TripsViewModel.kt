@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.mileowl.tracker.MileOwlApp
 import com.mileowl.tracker.data.model.Trip
 import com.mileowl.tracker.data.model.TripClassification
+import com.mileowl.tracker.data.model.TripPurpose
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -40,7 +41,17 @@ class TripsViewModel(application: Application) : AndroidViewModel(application) {
 
     fun classifyTrip(trip: Trip, classification: TripClassification) {
         viewModelScope.launch {
-            repo.updateTrip(trip.copy(classification = classification))
+            val defaultPurpose = when (classification) {
+                TripClassification.BUSINESS -> TripPurpose.BUSINESS
+                TripClassification.PERSONAL -> TripPurpose.PERSONAL
+                TripClassification.UNCLASSIFIED -> null
+            }
+            repo.updateTrip(
+                trip.copy(
+                    classification = classification,
+                    tripPurpose = trip.tripPurpose ?: defaultPurpose
+                )
+            )
         }
     }
 }

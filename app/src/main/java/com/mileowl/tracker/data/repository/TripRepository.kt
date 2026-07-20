@@ -1,17 +1,25 @@
 package com.mileowl.tracker.data.repository
 
+import com.mileowl.tracker.data.db.FrequentDriveDao
 import com.mileowl.tracker.data.db.SavedLocationDao
 import com.mileowl.tracker.data.db.TripDao
+import com.mileowl.tracker.data.db.VehicleDao
+import com.mileowl.tracker.data.model.FrequentDrive
 import com.mileowl.tracker.data.model.LocationPoint
 import com.mileowl.tracker.data.model.SavedLocation
 import com.mileowl.tracker.data.model.Trip
 import com.mileowl.tracker.data.model.TripClassification
+import com.mileowl.tracker.data.model.Vehicle
 import kotlinx.coroutines.flow.Flow
 
 class TripRepository(
     private val tripDao: TripDao,
-    private val savedLocationDao: SavedLocationDao
+    private val savedLocationDao: SavedLocationDao,
+    private val vehicleDao: VehicleDao,
+    private val frequentDriveDao: FrequentDriveDao
 ) {
+
+    // ── Trips ──────────────────────────────────────────────────────────
 
     fun getAllTrips(): Flow<List<Trip>> = tripDao.getAllTrips()
 
@@ -49,7 +57,13 @@ class TripRepository(
     suspend fun insertLocationPoint(point: LocationPoint) =
         tripDao.insertLocationPoint(point)
 
-    // Saved Locations
+    fun getTripsByVehicle(vehicleId: Long): Flow<List<Trip>> =
+        tripDao.getTripsByVehicle(vehicleId)
+
+    fun getTripsByVehicleInRange(vehicleId: Long, startDate: Long, endDate: Long): Flow<List<Trip>> =
+        tripDao.getTripsByVehicleInRange(vehicleId, startDate, endDate)
+
+    // ── Saved Locations ────────────────────────────────────────────────
 
     fun getAllSavedLocations(): Flow<List<SavedLocation>> =
         savedLocationDao.getAllSavedLocations()
@@ -85,4 +99,41 @@ class TripRepository(
             results[0] <= loc.radiusMeters
         }
     }
+
+    // ── Vehicles ───────────────────────────────────────────────────────
+
+    fun getAllVehicles(): Flow<List<Vehicle>> = vehicleDao.getAllVehicles()
+
+    suspend fun getVehicleById(id: Long): Vehicle? = vehicleDao.getVehicleById(id)
+
+    suspend fun getDefaultVehicle(): Vehicle? = vehicleDao.getDefaultVehicle()
+
+    suspend fun insertVehicle(vehicle: Vehicle): Long = vehicleDao.insertVehicle(vehicle)
+
+    suspend fun updateVehicle(vehicle: Vehicle) = vehicleDao.updateVehicle(vehicle)
+
+    suspend fun deleteVehicle(vehicle: Vehicle) = vehicleDao.deleteVehicle(vehicle)
+
+    suspend fun clearDefaultVehicle() = vehicleDao.clearDefaultVehicle()
+
+    suspend fun setDefaultVehicle(id: Long) {
+        vehicleDao.clearDefaultVehicle()
+        vehicleDao.setDefaultVehicle(id)
+    }
+
+    // ── Frequent Drives ────────────────────────────────────────────────
+
+    fun getAllFrequentDrives(): Flow<List<FrequentDrive>> = frequentDriveDao.getAllFrequentDrives()
+
+    suspend fun getFrequentDriveById(id: Long): FrequentDrive? =
+        frequentDriveDao.getFrequentDriveById(id)
+
+    suspend fun insertFrequentDrive(drive: FrequentDrive): Long =
+        frequentDriveDao.insertFrequentDrive(drive)
+
+    suspend fun updateFrequentDrive(drive: FrequentDrive) =
+        frequentDriveDao.updateFrequentDrive(drive)
+
+    suspend fun deleteFrequentDrive(drive: FrequentDrive) =
+        frequentDriveDao.deleteFrequentDrive(drive)
 }

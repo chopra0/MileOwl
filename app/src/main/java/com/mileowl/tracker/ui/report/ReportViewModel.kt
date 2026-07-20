@@ -27,6 +27,8 @@ data class ReportUiState(
     val totalDeduction: Double = 0.0,
     val irsRate: Double = 0.70,
     val businessTripCount: Int = 0,
+    val totalParkingCost: Double = 0.0,
+    val totalTollsCost: Double = 0.0,
     val csvFile: File? = null
 )
 
@@ -76,7 +78,9 @@ class ReportViewModel(application: Application) : AndroidViewModel(application) 
             totalPersonalMiles = personalTrips.sumOf { it.distanceMiles },
             totalDeduction = businessTrips.sumOf { it.distanceMiles } * irsRate,
             irsRate = irsRate,
-            businessTripCount = businessTrips.size
+            businessTripCount = businessTrips.size,
+            totalParkingCost = businessTrips.sumOf { it.parkingCost },
+            totalTollsCost = businessTrips.sumOf { it.tollsCost }
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ReportUiState())
 
@@ -86,7 +90,8 @@ class ReportViewModel(application: Application) : AndroidViewModel(application) 
 
     fun generateCsv(context: Context): File {
         val state = uiState.value
-        val vehicleInfo = "" // Could gather from prefs synchronously if needed
+        // Gather vehicle info — use default vehicle if available
+        val vehicleInfo = "" // Vehicle info now comes from Vehicle entities; CSV exporter can be enhanced later
         return CsvExporter.generateCsv(
             context = context,
             trips = state.trips,

@@ -66,4 +66,18 @@ interface TripDao {
 
     @Query("DELETE FROM location_points WHERE tripId = :tripId")
     suspend fun deleteLocationPointsForTrip(tripId: Long)
+
+    // New v2 queries
+
+    @Query("SELECT * FROM trips WHERE isActive = 0 AND vehicleId = :vehicleId ORDER BY startTime DESC")
+    fun getTripsByVehicle(vehicleId: Long): Flow<List<Trip>>
+
+    @Query(
+        """SELECT * FROM trips 
+        WHERE isActive = 0 
+        AND vehicleId = :vehicleId 
+        AND startTime >= :startDate AND startTime <= :endDate 
+        ORDER BY startTime DESC"""
+    )
+    fun getTripsByVehicleInRange(vehicleId: Long, startDate: Long, endDate: Long): Flow<List<Trip>>
 }

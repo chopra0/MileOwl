@@ -9,7 +9,9 @@ class AppContainer(application: Application) {
     private val database = MileOwlDatabase.getInstance(application)
     val tripRepository = TripRepository(
         database.tripDao(),
-        database.savedLocationDao()
+        database.savedLocationDao(),
+        database.vehicleDao(),
+        database.frequentDriveDao()
     )
     val preferencesManager = PreferencesManager(application)
 }

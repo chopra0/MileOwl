@@ -8,19 +8,33 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mileowl.tracker.data.model.TripClassification
+import com.mileowl.tracker.data.model.Vehicle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,6 +56,8 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var showAddVehicleDialog by remember { mutableStateOf(false) }
+    var vehicleToDelete by remember { mutableStateOf<Vehicle?>(null) }
 
     Column(
         modifier = Modifier
@@ -86,66 +103,57 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Vehicle Info Section
-        SectionHeader("Vehicle Information")
+        // Manage Vehicles Section
+        SectionHeader("Manage Vehicles")
         Card(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                var vehicleName by remember(state.vehicleName) { mutableStateOf(state.vehicleName) }
-                OutlinedTextField(
-                    value = vehicleName,
-                    onValueChange = {
-                        vehicleName = it
-                        viewModel.setVehicleName(it)
-                    },
-                    label = { Text("Vehicle Name") },
-                    placeholder = { Text("e.g., PSA Telluride") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    var year by remember(state.vehicleYear) { mutableStateOf(state.vehicleYear) }
-                    OutlinedTextField(
-                        value = year,
-                        onValueChange = {
-                            year = it
-                            viewModel.setVehicleYear(it)
-                        },
-                        label = { Text("Year") },
-                        placeholder = { Text("2027") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                    var make by remember(state.vehicleMake) { mutableStateOf(state.vehicleMake) }
-                    OutlinedTextField(
-                        value = make,
-                        onValueChange = {
-                            make = it
-                            viewModel.setVehicleMake(it)
-                        },
-                        label = { Text("Make") },
-                        placeholder = { Text("Kia") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
+            Column(modifier = Modifier.padding(16.dp)) {
+                if (state.vehicles.isEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Filled.DirectionsCar,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "No vehicles added yet",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    state.vehicles.forEachIndexed { index, vehicle ->
+                        if (index > 0) {
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                        }
+                        VehicleItem(
+                            vehicle = vehicle,
+                            onSetDefault = { viewModel.setDefaultVehicle(vehicle.id) },
+                            onDelete = { vehicleToDelete = vehicle }
+                        )
+                    }
                 }
 
-                var model by remember(state.vehicleModel) { mutableStateOf(state.vehicleModel) }
-                OutlinedTextField(
-                    value = model,
-                    onValueChange = {
-                        model = it
-                        viewModel.setVehicleModel(it)
-                    },
-                    label = { Text("Model") },
-                    placeholder = { Text("Telluride Hybrid SX Prestige X-Line") },
-                    singleLine = true,
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedButton(
+                    onClick = { showAddVehicleDialog = true },
                     modifier = Modifier.fillMaxWidth()
-                )
+                ) {
+                    Icon(
+                        Icons.Filled.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Add Vehicle")
+                }
             }
         }
 
@@ -257,7 +265,7 @@ fun SettingsScreen(
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "🦉 MileOwl v1.0.0",
+                    text = "🦉 MileOwl v2.0.0",
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium
                 )
@@ -278,6 +286,174 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
     }
+
+    // Add Vehicle Dialog
+    if (showAddVehicleDialog) {
+        AddVehicleDialog(
+            onDismiss = { showAddVehicleDialog = false },
+            onAdd = { name, year, make, model ->
+                viewModel.addVehicle(name, year, make, model)
+                showAddVehicleDialog = false
+            }
+        )
+    }
+
+    // Delete Vehicle Confirmation
+    vehicleToDelete?.let { vehicle ->
+        AlertDialog(
+            onDismissRequest = { vehicleToDelete = null },
+            title = { Text("Delete Vehicle?") },
+            text = { Text("Remove \"${vehicle.name}\" from your vehicles? Trips using this vehicle will keep their data.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteVehicle(vehicle)
+                    vehicleToDelete = null
+                }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { vehicleToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun VehicleItem(
+    vehicle: Vehicle,
+    onSetDefault: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            Icons.Filled.DirectionsCar,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = vehicle.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                if (vehicle.isDefault) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Text(
+                            text = "Default",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+            val details = listOf(vehicle.year, vehicle.make, vehicle.model)
+                .filter { it.isNotBlank() }
+                .joinToString(" ")
+            if (details.isNotBlank()) {
+                Text(
+                    text = details,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        IconButton(onClick = onSetDefault) {
+            Icon(
+                imageVector = if (vehicle.isDefault) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                contentDescription = if (vehicle.isDefault) "Default vehicle" else "Set as default",
+                tint = if (vehicle.isDefault) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        IconButton(onClick = onDelete) {
+            Icon(
+                Icons.Filled.Delete,
+                contentDescription = "Delete vehicle",
+                tint = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+}
+
+@Composable
+private fun AddVehicleDialog(
+    onDismiss: () -> Unit,
+    onAdd: (name: String, year: String, make: String, model: String) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var year by remember { mutableStateOf("") }
+    var make by remember { mutableStateOf("") }
+    var model by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Vehicle") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Vehicle Name") },
+                    placeholder = { Text("e.g., PSA Telluride") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = year,
+                        onValueChange = { year = it },
+                        label = { Text("Year") },
+                        placeholder = { Text("2027") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = make,
+                        onValueChange = { make = it },
+                        label = { Text("Make") },
+                        placeholder = { Text("Kia") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                OutlinedTextField(
+                    value = model,
+                    onValueChange = { model = it },
+                    label = { Text("Model") },
+                    placeholder = { Text("Telluride Hybrid SX Prestige X-Line") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onAdd(name, year, make, model) },
+                enabled = name.isNotBlank()
+            ) {
+                Text("Add")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable
