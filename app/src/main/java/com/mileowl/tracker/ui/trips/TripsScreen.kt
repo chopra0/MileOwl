@@ -20,16 +20,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Card
-import androidx.compose.material3.DismissDirection
-import androidx.compose.material3.DismissValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SwipeToDismiss
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDismissState
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -160,14 +159,14 @@ private fun SwipeableTripItem(
     onClick: () -> Unit,
     onClassify: (TripClassification) -> Unit
 ) {
-    val dismissState = rememberDismissState(
+    val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { dismissValue ->
             when (dismissValue) {
-                DismissValue.DismissedToEnd -> {
+                SwipeToDismissBoxValue.StartToEnd -> {
                     onClassify(TripClassification.BUSINESS)
                     false // Don't actually dismiss, just classify
                 }
-                DismissValue.DismissedToStart -> {
+                SwipeToDismissBoxValue.EndToStart -> {
                     onClassify(TripClassification.PERSONAL)
                     false
                 }
@@ -176,25 +175,25 @@ private fun SwipeableTripItem(
         }
     )
 
-    SwipeToDismiss(
+    SwipeToDismissBox(
         state = dismissState,
-        background = {
+        backgroundContent = {
             val direction = dismissState.dismissDirection
             val color by animateColorAsState(
                 when (direction) {
-                    DismissDirection.StartToEnd -> BusinessGreen.copy(alpha = 0.3f)
-                    DismissDirection.EndToStart -> PersonalBlue.copy(alpha = 0.3f)
+                    SwipeToDismissBoxValue.StartToEnd -> BusinessGreen.copy(alpha = 0.3f)
+                    SwipeToDismissBoxValue.EndToStart -> PersonalBlue.copy(alpha = 0.3f)
                     else -> Color.Transparent
                 },
                 label = "swipeColor"
             )
             val label = when (direction) {
-                DismissDirection.StartToEnd -> "→ Business"
-                DismissDirection.EndToStart -> "Personal ←"
+                SwipeToDismissBoxValue.StartToEnd -> "→ Business"
+                SwipeToDismissBoxValue.EndToStart -> "Personal ←"
                 else -> ""
             }
             val alignment = when (direction) {
-                DismissDirection.StartToEnd -> Alignment.CenterStart
+                SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
                 else -> Alignment.CenterEnd
             }
 
@@ -210,14 +209,14 @@ private fun SwipeableTripItem(
                     text = label,
                     fontWeight = FontWeight.Bold,
                     color = when (direction) {
-                        DismissDirection.StartToEnd -> BusinessGreen
-                        DismissDirection.EndToStart -> PersonalBlue
+                        SwipeToDismissBoxValue.StartToEnd -> BusinessGreen
+                        SwipeToDismissBoxValue.EndToStart -> PersonalBlue
                         else -> Color.Transparent
                     }
                 )
             }
         },
-        dismissContent = {
+        content = {
             TripListItem(trip = trip, onClick = onClick)
         }
     )

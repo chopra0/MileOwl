@@ -47,6 +47,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.mileowl.tracker.MainActivity
 import com.mileowl.tracker.data.model.TripClassification
 import com.mileowl.tracker.data.model.Vehicle
 
