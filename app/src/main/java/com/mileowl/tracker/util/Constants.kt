@@ -15,4 +15,9 @@ object Constants {
     const val ACTIVITY_TRANSITION_REQUEST_CODE = 100
     const val LOCATION_PERMISSION_REQUEST_CODE = 101
     const val ACTIVITY_RECOGNITION_REQUEST_CODE = 102
+    const val ALERTS_CHANNEL_ID = "mileowl_alerts"
+    const val ALERTS_CHANNEL_NAME = "MileOwl Alerts"
+    const val POWER_SAVE_NOTIFICATION_ID = 2001
+    const val PERMISSION_ALERT_NOTIFICATION_ID = 2002
+    const val GPS_DISABLED_NOTIFICATION_ID = 2003
 }

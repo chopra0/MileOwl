@@ -66,6 +66,15 @@
             </intent-filter>
         </receiver>
 
+        <!-- Power Save Mode Receiver -->
+        <receiver
+            android:name=".service.PowerSaveReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.os.action.POWER_SAVE_MODE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
         <!-- FileProvider for CSV sharing -->
         <provider
             android:name="androidx.core.content.FileProvider"

@@ -3,8 +3,9 @@ package com.mileowl.tracker.service
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.util.Log
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.location.ActivityRecognition
 import com.google.android.gms.location.ActivityTransition
 import com.google.android.gms.location.ActivityTransitionRequest
@@ -14,6 +15,20 @@ import com.mileowl.tracker.util.Constants
 object ActivityTransitionHelper {
 
     private const val TAG = "ActivityTransitionHelper"
+
+    /**
+     * Check whether Google Play Services is available on this device.
+     */
+    fun isPlayServicesAvailable(context: Context): Boolean {
+        return try {
+            val result = GoogleApiAvailability.getInstance()
+                .isGooglePlayServicesAvailable(context)
+            result == ConnectionResult.SUCCESS
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not check Play Services availability", e)
+            false
+        }
+    }
 
     /**
      * Build the list of activity transitions we care about:
@@ -43,8 +58,14 @@ object ActivityTransitionHelper {
 
     /**
      * Register for activity transition updates.
+     * Returns true if registration was attempted, false if Play Services is unavailable.
      */
-    fun registerTransitions(context: Context) {
+    fun registerTransitions(context: Context): Boolean {
+        if (!isPlayServicesAvailable(context)) {
+            Log.w(TAG, "Google Play Services not available — skipping activity transition registration")
+            return false
+        }
+
         val request = ActivityTransitionRequest(buildTransitionList())
         val intent = Intent(context, ActivityTransitionReceiver::class.java)
         val pendingIntent = PendingIntent.getBroadcast(
@@ -54,7 +75,7 @@ object ActivityTransitionHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
         )
 
-        try {
+        return try {
             val task = ActivityRecognition.getClient(context)
                 .requestActivityTransitionUpdates(request, pendingIntent)
             task.addOnSuccessListener {
@@ -63,8 +84,13 @@ object ActivityTransitionHelper {
             task.addOnFailureListener { e ->
                 Log.e(TAG, "Failed to register activity transitions", e)
             }
+            true
         } catch (e: SecurityException) {
             Log.e(TAG, "Missing ACTIVITY_RECOGNITION permission", e)
+            false
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error registering activity transitions", e)
+            false
         }
     }
 
@@ -72,6 +98,8 @@ object ActivityTransitionHelper {
      * Unregister from activity transition updates.
      */
     fun unregisterTransitions(context: Context) {
+        if (!isPlayServicesAvailable(context)) return
+
         val intent = Intent(context, ActivityTransitionReceiver::class.java)
         val pendingIntent = PendingIntent.getBroadcast(
             context,
@@ -88,6 +116,8 @@ object ActivityTransitionHelper {
                 }
         } catch (e: SecurityException) {
             Log.e(TAG, "Missing permission to unregister transitions", e)
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error unregistering activity transitions", e)
         }
     }
 }

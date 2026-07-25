@@ -18,9 +18,12 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -29,15 +32,19 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.mileowl.tracker.MileOwlApp
 import com.mileowl.tracker.ui.frequentdrives.FrequentDrivesScreen
 import com.mileowl.tracker.ui.home.HomeScreen
 import com.mileowl.tracker.ui.locations.SavedLocationsScreen
+import com.mileowl.tracker.ui.permission.PermissionScreen
 import com.mileowl.tracker.ui.report.ReportScreen
 import com.mileowl.tracker.ui.settings.SettingsScreen
 import com.mileowl.tracker.ui.tripdetail.TripDetailScreen
 import com.mileowl.tracker.ui.trips.TripsScreen
+import kotlinx.coroutines.launch
 
 object NavRoutes {
+    const val PERMISSION = "permission"
     const val HOME = "home"
     const val TRIPS = "trips"
     const val TRIP_DETAIL = "trip_detail/{tripId}"
@@ -69,8 +76,17 @@ fun MileOwlNavGraph() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    val app = context.applicationContext as MileOwlApp
+    val prefs = app.container.preferencesManager
+    val onboardingComplete by prefs.onboardingCompleteFlow.collectAsState(initial = true)
 
     val showBottomBar = currentDestination?.route in bottomNavItems.map { it.route }
+
+    // Determine start destination based on onboarding state
+    val startDestination = if (onboardingComplete) NavRoutes.HOME else NavRoutes.PERMISSION
 
     Scaffold(
         bottomBar = {
@@ -107,9 +123,22 @@ fun MileOwlNavGraph() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = NavRoutes.HOME,
+            startDestination = startDestination,
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable(NavRoutes.PERMISSION) {
+                PermissionScreen(
+                    onSetupComplete = {
+                        scope.launch {
+                            prefs.setOnboardingComplete(true)
+                        }
+                        navController.navigate(NavRoutes.HOME) {
+                            popUpTo(NavRoutes.PERMISSION) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
             composable(NavRoutes.HOME) {
                 HomeScreen(
                     onNavigateToTrips = {

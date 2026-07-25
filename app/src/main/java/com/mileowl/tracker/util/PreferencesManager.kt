@@ -25,6 +25,7 @@ class PreferencesManager(private val context: Context) {
         val AUTO_DETECTION_ENABLED = booleanPreferencesKey("auto_detection_enabled")
         val HIGH_ACCURACY = booleanPreferencesKey("high_accuracy")
         val DEFAULT_CLASSIFICATION = stringPreferencesKey("default_classification")
+        val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
     }
 
     val irsRateFlow: Flow<Double> = context.dataStore.data.map { prefs ->
@@ -90,5 +91,13 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun setDefaultClassification(classification: TripClassification) {
         context.dataStore.edit { it[Keys.DEFAULT_CLASSIFICATION] = classification.name }
+    }
+
+    val onboardingCompleteFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[Keys.ONBOARDING_COMPLETE] ?: false
+    }
+
+    suspend fun setOnboardingComplete(complete: Boolean) {
+        context.dataStore.edit { it[Keys.ONBOARDING_COMPLETE] = complete }
     }
 }
