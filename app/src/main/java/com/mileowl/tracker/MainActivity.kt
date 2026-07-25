@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
             try {
                 ActivityTransitionHelper.registerTransitions(this)
             } catch (_: Exception) {
-                // Play Services not available — manual tracking still works
+                // Play Services not available — activity transitions could not be registered
             }
         }
 

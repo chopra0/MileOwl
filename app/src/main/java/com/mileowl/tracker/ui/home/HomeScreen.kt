@@ -195,12 +195,12 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Auto-detection unavailable",
+                                    text = "Google Play Services required",
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    text = "Google Play Services not found. You can still track trips manually with the start/stop button.",
+                                    text = "Google Play Services is required for automatic trip detection. Please install or update Google Play Services.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -443,7 +443,7 @@ private fun TrackingStatusCard(isTracking: Boolean) {
                     text = if (isTracking) {
                         "Recording trip in progress..."
                     } else {
-                        "Auto-detection active \u2022 Tap + to start manually"
+                        "Auto-detection active"
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

@@ -7,9 +7,12 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.location.Location
+import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
+import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -79,6 +82,10 @@ class TripTrackingService : Service() {
 
     private fun startTracking() {
         Log.d(TAG, "Starting trip tracking")
+
+        // Prompt for battery optimization exemption if not already granted
+        checkBatteryExemption()
+
         isTracking = true
         totalDistanceMeters = 0.0
         pointCount = 0
@@ -110,6 +117,27 @@ class TripTrackingService : Service() {
         }
 
         startLocationUpdates()
+    }
+
+    /**
+     * Prompts the user to exempt MileOwl from battery optimization if not already granted.
+     * Called reactively at the moment tracking starts, when it actually matters.
+     */
+    private fun checkBatteryExemption() {
+        val pm = getSystemService(POWER_SERVICE) as PowerManager
+        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+            try {
+                val intent = Intent(
+                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                ).apply {
+                    data = Uri.parse("package:$packageName")
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                startActivity(intent)
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not request battery optimization exemption", e)
+            }
+        }
     }
 
     private fun stopTracking() {

@@ -7,11 +7,12 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,12 +32,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,7 +53,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.mileowl.tracker.service.ActivityTransitionHelper
-import com.mileowl.tracker.ui.theme.Amber500
 import com.mileowl.tracker.ui.theme.TrackingGreen
 
 @Composable
@@ -63,21 +63,21 @@ fun PermissionScreen(
     val activity = context as? Activity
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // Permission states
+    // ─── Permission states ──────────────────────────────────────────
     var hasFineLocation by remember {
         mutableStateOf(hasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION))
-    }
-    var hasActivityRecognition by remember {
-        mutableStateOf(
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
-                hasPermission(context, Manifest.permission.ACTIVITY_RECOGNITION)
-            else true
-        )
     }
     var hasBackgroundLocation by remember {
         mutableStateOf(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
                 hasPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            else true
+        )
+    }
+    var hasActivityRecognition by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                hasPermission(context, Manifest.permission.ACTIVITY_RECOGNITION)
             else true
         )
     }
@@ -88,75 +88,177 @@ fun PermissionScreen(
             else true
         )
     }
-    var hasBatteryExemption by remember {
-        mutableStateOf(isBatteryExempt(context))
-    }
 
-    // Track whether each permission was requested at least once (to detect "permanently denied")
+    // ─── Auto-fire state ────────────────────────────────────────────
+    // Steps: 0 = Location (fg + bg combined), 1 = Activity Recognition, 2 = Notifications, 3 = done
+    var currentStep by remember { mutableStateOf(0) }
+    var retryTrigger by remember { mutableStateOf(0) }
+
+    // Track denials for permanently-denied detection
     var locationRequested by remember { mutableStateOf(false) }
     var activityRequested by remember { mutableStateOf(false) }
     var notificationRequested by remember { mutableStateOf(false) }
 
-    // Dialog state for permanently denied permissions
+    // Dialog state
     var showDeniedDialog by remember { mutableStateOf<PermissionDeniedInfo?>(null) }
 
-    // Google Play Services
+    // Play Services
     val playServicesAvailable = remember {
         ActivityTransitionHelper.isPlayServicesAvailable(context)
     }
 
-    // Re-check permissions when returning from Settings
+    // Location is fully granted only when BOTH foreground AND background are granted
+    val locationFullyGranted = hasFineLocation && hasBackgroundLocation
+    val corePermissionsGranted = locationFullyGranted && hasActivityRecognition
+
+    // ─── Re-check on resume (returning from Settings) ───────────────
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 hasFineLocation = hasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
-                hasActivityRecognition = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
-                    hasPermission(context, Manifest.permission.ACTIVITY_RECOGNITION)
-                else true
                 hasBackgroundLocation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
                     hasPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                else true
+                hasActivityRecognition = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                    hasPermission(context, Manifest.permission.ACTIVITY_RECOGNITION)
                 else true
                 hasNotification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
                     hasPermission(context, Manifest.permission.POST_NOTIFICATIONS)
                 else true
-                hasBatteryExemption = isBatteryExempt(context)
+                retryTrigger++
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // Launchers
+    // ─── Launchers ──────────────────────────────────────────────────
+
+    val backgroundLocationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasBackgroundLocation = granted
+        if (granted) {
+            currentStep = 1
+        }
+        // If denied on Android 10, user stays on step 0. ON_RESUME will retryTrigger.
+    }
+
     val locationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
-        hasFineLocation = granted
-        if (!granted) locationRequested = true
+        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+        hasFineLocation = fineGranted
+        if (fineGranted) {
+            // Foreground granted — now handle background immediately
+            if (hasBackgroundLocation || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                // Both already granted (pre-Q treats fg as sufficient)
+                currentStep = 1
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                // Android 11+: must go to Settings for "Allow all the time"
+                showDeniedDialog = PermissionDeniedInfo(
+                    title = "Allow Location All The Time",
+                    reason = "MileOwl needs location access all the time to track your trips when the screen is off or you switch apps. \"While using the app\" is not sufficient for automatic mileage tracking.",
+                    steps = "1. Tap 'Open Settings' below\n2. Tap 'Permissions'\n3. Tap 'Location'\n4. Select 'Allow all the time'"
+                )
+            } else {
+                // Android 10: can request background via launcher
+                backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            }
+        } else {
+            locationRequested = true
+        }
     }
 
     val activityLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         hasActivityRecognition = granted
-        if (!granted) activityRequested = true
-    }
-
-    val backgroundLocationLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasBackgroundLocation = granted
+        if (granted) {
+            currentStep = 2
+        } else {
+            activityRequested = true
+        }
     }
 
     val notificationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         hasNotification = granted
-        if (!granted) notificationRequested = true
+        if (granted) {
+            currentStep = 3
+        } else {
+            notificationRequested = true
+        }
     }
 
-    val corePermissionsGranted = hasFineLocation && hasActivityRecognition
+    // ─── Auto-fire permissions in sequence ───────────────────────────
+    LaunchedEffect(currentStep, retryTrigger) {
+        when (currentStep) {
+            0 -> {
+                if (!hasFineLocation) {
+                    // Need foreground location first
+                    if (isPermanentlyDenied(activity, Manifest.permission.ACCESS_FINE_LOCATION, locationRequested)) {
+                        showDeniedDialog = PermissionDeniedInfo(
+                            title = "Location Permission Required",
+                            reason = "Location permission is required to record your driving routes and calculate mileage for IRS deductions.",
+                            steps = "1. Tap 'Open Settings' below\n2. Tap 'Permissions'\n3. Tap 'Location'\n4. Select 'Allow all the time'"
+                        )
+                    } else {
+                        locationLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
+                        )
+                    }
+                } else if (!hasBackgroundLocation && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    // Foreground granted but background not — need "Allow all the time"
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        showDeniedDialog = PermissionDeniedInfo(
+                            title = "Allow Location All The Time",
+                            reason = "MileOwl needs location access all the time to track your trips when the screen is off or you switch apps. \"While using the app\" is not sufficient for automatic mileage tracking.",
+                            steps = "1. Tap 'Open Settings' below\n2. Tap 'Permissions'\n3. Tap 'Location'\n4. Select 'Allow all the time'"
+                        )
+                    } else {
+                        backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                    }
+                } else {
+                    // Both foreground and background granted
+                    currentStep = 1
+                }
+            }
+            1 -> {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || hasActivityRecognition) {
+                    currentStep = 2
+                } else if (isPermanentlyDenied(activity, Manifest.permission.ACTIVITY_RECOGNITION, activityRequested)) {
+                    showDeniedDialog = PermissionDeniedInfo(
+                        title = "Activity Recognition Required",
+                        reason = "Activity Recognition lets MileOwl automatically detect when you start driving, so trips are tracked without manual action.",
+                        steps = "1. Tap 'Open Settings' below\n2. Tap 'Permissions'\n3. Tap 'Physical activity'\n4. Toggle it on"
+                    )
+                } else {
+                    activityLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+                }
+            }
+            2 -> {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || hasNotification) {
+                    currentStep = 3
+                } else if (isPermanentlyDenied(activity, Manifest.permission.POST_NOTIFICATIONS, notificationRequested)) {
+                    showDeniedDialog = PermissionDeniedInfo(
+                        title = "Notifications Permission",
+                        reason = "Notifications allow MileOwl to show tracking status and alert you about issues that could affect trip detection.",
+                        steps = "1. Tap 'Open Settings' below\n2. Tap 'Notifications'\n3. Toggle 'Allow notifications' on"
+                    )
+                } else {
+                    notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+            // Step 3: all done, nothing to auto-fire
+        }
+    }
 
+    // ─── UI ─────────────────────────────────────────────────────────
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -173,7 +275,7 @@ fun PermissionScreen(
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Set up permissions",
+            text = "Setting up...",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -185,142 +287,68 @@ fun PermissionScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Google Play Services warning
+        // Play Services error (hard requirement, not a soft warning)
         if (!playServicesAvailable) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = Amber500.copy(alpha = 0.15f)
+                    containerColor = MaterialTheme.colorScheme.errorContainer
                 )
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Google Play Services not found",
+                        text = "Google Play Services required",
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onErrorContainer
                     )
                     Text(
-                        text = "Automatic trip detection requires Google Play Services. You can still track trips manually using the start/stop button.",
+                        text = "Google Play Services is required for automatic trip detection. Please install or update Google Play Services.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
                     )
                 }
             }
         }
 
-        // 1. Location
-        PermissionCard(
+        // 1. Location (combined foreground + background — only green when both granted)
+        PermissionStatusCard(
             title = "Location",
-            description = "Records your route to calculate mileage accurately.",
-            granted = hasFineLocation,
-            onGrant = {
-                if (isPermanentlyDenied(activity, Manifest.permission.ACCESS_FINE_LOCATION, locationRequested)) {
-                    showDeniedDialog = PermissionDeniedInfo(
-                        title = "Location Permission Required",
-                        reason = "Location permission is required to record your driving routes and calculate mileage for IRS deductions.",
-                        steps = "1. Tap 'Open Settings' below\n2. Tap 'Permissions'\n3. Tap 'Location'\n4. Select 'Allow all the time'"
-                    )
-                } else {
-                    locationLauncher.launch(
-                        arrayOf(
-                            Manifest.permission.ACCESS_FINE_LOCATION,
-                            Manifest.permission.ACCESS_COARSE_LOCATION
-                        )
-                    )
-                }
-            }
+            description = "Allows MileOwl to record routes and track trips at all times.",
+            granted = locationFullyGranted,
+            isActive = currentStep == 0 && !locationFullyGranted,
+            onRetry = { retryTrigger++ }
         )
 
         // 2. Activity Recognition (Android 10+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            PermissionCard(
+            PermissionStatusCard(
                 title = "Activity Recognition",
                 description = "Detects when you start or stop driving to auto-track trips.",
                 granted = hasActivityRecognition,
-                enabled = hasFineLocation,
-                onGrant = {
-                    if (isPermanentlyDenied(activity, Manifest.permission.ACTIVITY_RECOGNITION, activityRequested)) {
-                        showDeniedDialog = PermissionDeniedInfo(
-                            title = "Activity Recognition Required",
-                            reason = "Activity Recognition lets MileOwl automatically detect when you start driving, so trips are tracked without manual action.",
-                            steps = "1. Tap 'Open Settings' below\n2. Tap 'Permissions'\n3. Tap 'Physical activity'\n4. Toggle it on"
-                        )
-                    } else {
-                        activityLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
-                    }
-                }
+                isActive = currentStep == 1 && !hasActivityRecognition,
+                onRetry = { retryTrigger++ }
             )
         }
 
-        // 3. Background Location (Android 10+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            PermissionCard(
-                title = "Background Location",
-                description = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
-                    "Tracks trips when the app is in the background. Tap Grant, then select \"Allow all the time\"."
-                else
-                    "Allows trip tracking to continue when the app is in the background.",
-                granted = hasBackgroundLocation,
-                enabled = hasFineLocation && hasActivityRecognition,
-                onGrant = {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        // Android 11+: always goes to Settings for background location
-                        showDeniedDialog = PermissionDeniedInfo(
-                            title = "Background Location Required",
-                            reason = "Background location allows MileOwl to keep tracking your trip even when the screen is off or you switch apps.",
-                            steps = "1. Tap 'Open Settings' below\n2. Tap 'Permissions'\n3. Tap 'Location'\n4. Select 'Allow all the time'"
-                        )
-                    } else {
-                        backgroundLocationLauncher.launch(
-                            Manifest.permission.ACCESS_BACKGROUND_LOCATION
-                        )
-                    }
-                }
-            )
-        }
-
-        // 4. Notifications (Android 13+)
+        // 3. Notifications (Android 13+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            PermissionCard(
+            PermissionStatusCard(
                 title = "Notifications",
                 description = "Shows tracking status and trip summaries.",
                 granted = hasNotification,
-                onGrant = {
-                    if (isPermanentlyDenied(activity, Manifest.permission.POST_NOTIFICATIONS, notificationRequested)) {
-                        showDeniedDialog = PermissionDeniedInfo(
-                            title = "Notifications Permission",
-                            reason = "Notifications allow MileOwl to show tracking status and alert you about issues that could affect trip detection.",
-                            steps = "1. Tap 'Open Settings' below\n2. Tap 'Notifications'\n3. Toggle 'Allow notifications' on"
-                        )
-                    } else {
-                        notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    }
-                }
+                isActive = currentStep == 2 && !hasNotification,
+                onRetry = { retryTrigger++ }
             )
         }
-
-        // 5. Battery Optimization Exemption
-        PermissionCard(
-            title = "Unrestricted Battery",
-            description = "Prevents Android from killing MileOwl in the background during trips.",
-            granted = hasBatteryExemption,
-            onGrant = {
-                requestBatteryExemption(context)
-            }
-        )
 
         Spacer(modifier = Modifier.height(24.dp))
 
         // Get Started button
         Button(
             onClick = {
-                // Register activity transitions if we have the permissions
                 if (hasActivityRecognition && hasFineLocation && playServicesAvailable) {
                     ActivityTransitionHelper.registerTransitions(context)
-                }
-                // Request battery exemption if not already granted
-                if (!hasBatteryExemption) {
-                    requestBatteryExemption(context)
                 }
                 onSetupComplete()
             },
@@ -331,7 +359,7 @@ fun PermissionScreen(
             shape = RoundedCornerShape(12.dp)
         ) {
             Text(
-                text = if (corePermissionsGranted) "Get Started" else "Grant permissions above",
+                text = if (corePermissionsGranted) "Get Started" else "Setting up permissions...",
                 style = MaterialTheme.typography.titleMedium
             )
         }
@@ -348,7 +376,7 @@ fun PermissionScreen(
         Spacer(modifier = Modifier.height(24.dp))
     }
 
-    // Permanently denied explanation dialog
+    // Explanation / Settings redirect dialog
     showDeniedDialog?.let { info ->
         PermissionDeniedDialog(
             info = info,
@@ -427,25 +455,39 @@ private fun PermissionDeniedDialog(
     )
 }
 
-// ─── Permission card ────────────────────────────────────────────────
+// ─── Permission status card (display-only, no Grant button) ─────────
 
 @Composable
-private fun PermissionCard(
+private fun PermissionStatusCard(
     title: String,
     description: String,
     granted: Boolean,
-    enabled: Boolean = true,
-    onGrant: () -> Unit
+    isActive: Boolean,
+    onRetry: () -> Unit
 ) {
+    val cardModifier = if (isActive) {
+        Modifier
+            .fillMaxWidth()
+            .border(
+                width = 2.dp,
+                color = MaterialTheme.colorScheme.primary,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clickable { onRetry() }
+    } else {
+        Modifier.fillMaxWidth()
+    }
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = cardModifier,
         colors = CardDefaults.cardColors(
-            containerColor = if (granted) {
-                TrackingGreen.copy(alpha = 0.08f)
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
+            containerColor = when {
+                granted -> TrackingGreen.copy(alpha = 0.08f)
+                isActive -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                else -> MaterialTheme.colorScheme.surfaceVariant
             }
-        )
+        ),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Row(
             modifier = Modifier
@@ -459,8 +501,11 @@ private fun PermissionCard(
                     .size(12.dp)
                     .clip(CircleShape)
                     .background(
-                        if (granted) TrackingGreen
-                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                        when {
+                            granted -> TrackingGreen
+                            isActive -> MaterialTheme.colorScheme.primary
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                        }
                     )
             )
 
@@ -488,13 +533,13 @@ private fun PermissionCard(
                     color = TrackingGreen,
                     fontWeight = FontWeight.Bold
                 )
-            } else {
-                FilledTonalButton(
-                    onClick = onGrant,
-                    enabled = enabled
-                ) {
-                    Text("Grant")
-                }
+            } else if (isActive) {
+                Text(
+                    text = "...",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
@@ -521,22 +566,6 @@ private fun isPermanentlyDenied(
     if (!wasRequested) return false
     if (hasPermission(activity, permission)) return false
     return !activity.shouldShowRequestPermissionRationale(permission)
-}
-
-private fun isBatteryExempt(context: Context): Boolean {
-    val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-    return pm.isIgnoringBatteryOptimizations(context.packageName)
-}
-
-private fun requestBatteryExemption(context: Context) {
-    try {
-        val intent = Intent(
-            Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
-        ).apply {
-            data = Uri.parse("package:${context.packageName}")
-        }
-        context.startActivity(intent)
-    } catch (_: Exception) { }
 }
 
 private fun openAppSettings(context: Context) {
