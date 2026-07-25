@@ -73,9 +73,15 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE saved_locations ADD COLUMN defaultClassification TEXT NOT NULL DEFAULT 'UNCLASSIFIED'")
+    }
+}
+
 @Database(
     entities = [Trip::class, LocationPoint::class, SavedLocation::class, Vehicle::class, FrequentDrive::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -97,7 +103,7 @@ abstract class MileOwlDatabase : RoomDatabase() {
                     MileOwlDatabase::class.java,
                     "mileowl.db"
                 )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build().also { INSTANCE = it }
             }
         }

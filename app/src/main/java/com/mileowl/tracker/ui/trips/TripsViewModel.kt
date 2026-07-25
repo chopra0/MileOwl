@@ -35,6 +35,10 @@ class TripsViewModel(application: Application) : AndroidViewModel(application) {
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // Selection mode state
+    val selectedTrips = MutableStateFlow<Set<Long>>(emptySet())
+    val isSelectionMode = MutableStateFlow(false)
+
     fun setFilter(classification: TripClassification?) {
         filter.value = TripsFilter(classification)
     }
@@ -52,6 +56,39 @@ class TripsViewModel(application: Application) : AndroidViewModel(application) {
                     tripPurpose = trip.tripPurpose ?: defaultPurpose
                 )
             )
+        }
+    }
+
+    fun enterSelectionMode(tripId: Long) {
+        isSelectionMode.value = true
+        selectedTrips.value = setOf(tripId)
+    }
+
+    fun toggleSelection(tripId: Long) {
+        val current = selectedTrips.value.toMutableSet()
+        if (current.contains(tripId)) current.remove(tripId) else current.add(tripId)
+        selectedTrips.value = current
+        if (current.isEmpty()) isSelectionMode.value = false
+    }
+
+    fun selectAllUnclassified() {
+        val unclassified = trips.value.filter { it.classification == TripClassification.UNCLASSIFIED }
+        selectedTrips.value = unclassified.map { it.id }.toSet()
+        if (selectedTrips.value.isNotEmpty()) isSelectionMode.value = true
+    }
+
+    fun clearSelection() {
+        selectedTrips.value = emptySet()
+        isSelectionMode.value = false
+    }
+
+    fun bulkClassify(classification: TripClassification) {
+        viewModelScope.launch {
+            val selected = selectedTrips.value
+            trips.value.filter { it.id in selected }.forEach { trip ->
+                classifyTrip(trip, classification)
+            }
+            clearSelection()
         }
     }
 }

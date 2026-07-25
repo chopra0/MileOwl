@@ -67,6 +67,9 @@ interface TripDao {
     @Query("DELETE FROM location_points WHERE tripId = :tripId")
     suspend fun deleteLocationPointsForTrip(tripId: Long)
 
+    @Query("SELECT COUNT(*) FROM trips WHERE isActive = 0 AND classification = 'UNCLASSIFIED'")
+    suspend fun getUnclassifiedTripCount(): Int
+
     // New v2 queries
 
     @Query("SELECT * FROM trips WHERE isActive = 0 AND vehicleId = :vehicleId ORDER BY startTime DESC")

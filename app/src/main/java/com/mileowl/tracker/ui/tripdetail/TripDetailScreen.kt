@@ -1,5 +1,6 @@
 package com.mileowl.tracker.ui.tripdetail
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -72,6 +73,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -80,6 +87,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mileowl.tracker.data.model.TripClassification
 import com.mileowl.tracker.data.model.TripPurpose
+import com.mileowl.tracker.data.model.LocationPoint
 import com.mileowl.tracker.data.model.Vehicle
 import com.mileowl.tracker.ui.theme.BusinessGreen
 import com.mileowl.tracker.ui.theme.PersonalBlue
@@ -210,6 +218,28 @@ fun TripDetailScreen(
                             text = "${trip.startAddress ?: "Unknown"} → ${trip.endAddress ?: "Unknown"}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Route map
+            if (state.locationPoints.size >= 2) {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Route Map",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        RouteMapCanvas(
+                            locationPoints = state.locationPoints,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
                         )
                     }
                 }
@@ -667,5 +697,80 @@ private fun DetailStat(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+@Composable
+fun RouteMapCanvas(
+    locationPoints: List<LocationPoint>,
+    modifier: Modifier = Modifier
+) {
+    if (locationPoints.size < 2) {
+        Box(
+            modifier = modifier,
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "No route data available",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        return
+    }
+
+    // Calculate bounds
+    val minLat = locationPoints.minOf { it.latitude }
+    val maxLat = locationPoints.maxOf { it.latitude }
+    val minLon = locationPoints.minOf { it.longitude }
+    val maxLon = locationPoints.maxOf { it.longitude }
+
+    // Add padding to bounds
+    val latRange = (maxLat - minLat).coerceAtLeast(0.0005)
+    val lonRange = (maxLon - minLon).coerceAtLeast(0.0005)
+    val latPad = latRange * 0.15
+    val lonPad = lonRange * 0.15
+
+    val routeColor = Color(0xFF4285F4)
+    val startColor = Color(0xFF34A853)
+    val endColor = Color(0xFFEA4335)
+
+    Canvas(modifier = modifier) {
+        val width = size.width
+        val height = size.height
+
+        fun mapX(lon: Double): Float =
+            ((lon - (minLon - lonPad)) / ((maxLon + lonPad) - (minLon - lonPad)) * width).toFloat()
+        fun mapY(lat: Double): Float =
+            (height - (lat - (minLat - latPad)) / ((maxLat + latPad) - (minLat - latPad)) * height).toFloat()
+
+        // Draw route line
+        val path = Path()
+        locationPoints.forEachIndexed { index, point ->
+            val x = mapX(point.longitude)
+            val y = mapY(point.latitude)
+            if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        drawPath(
+            path,
+            color = routeColor,
+            style = Stroke(
+                width = 4.dp.toPx(),
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round
+            )
+        )
+
+        // Draw start marker (green circle)
+        val startX = mapX(locationPoints.first().longitude)
+        val startY = mapY(locationPoints.first().latitude)
+        drawCircle(color = startColor, radius = 8.dp.toPx(), center = Offset(startX, startY))
+        drawCircle(color = Color.White, radius = 4.dp.toPx(), center = Offset(startX, startY))
+
+        // Draw end marker (red circle)
+        val endX = mapX(locationPoints.last().longitude)
+        val endY = mapY(locationPoints.last().latitude)
+        drawCircle(color = endColor, radius = 8.dp.toPx(), center = Offset(endX, endY))
+        drawCircle(color = Color.White, radius = 4.dp.toPx(), center = Offset(endX, endY))
     }
 }

@@ -26,6 +26,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -261,6 +262,112 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
+        // Work Hours Section
+        SectionHeader("Work Hours")
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                // Work hours toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Auto-classify by work hours",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = "Drives outside work hours → Personal",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = state.workHoursEnabled,
+                        onCheckedChange = { viewModel.setWorkHoursEnabled(it) }
+                    )
+                }
+
+                if (state.workHoursEnabled) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+                    // Time pickers
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Start time
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Start",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            WorkHourTimePicker(
+                                value = state.workStartHour,
+                                onValueChange = { viewModel.setWorkStartHour(it) }
+                            )
+                        }
+                        // End time
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "End",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            WorkHourTimePicker(
+                                value = state.workEndHour,
+                                onValueChange = { viewModel.setWorkEndHour(it) }
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+                    // Work days chips
+                    Text(
+                        text = "Work Days",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val allDays = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+                    val selectedDays = state.workDays.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        allDays.forEach { day ->
+                            val isSelected = selectedDays.any { it.equals(day, ignoreCase = true) }
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    val newDays = if (isSelected) {
+                                        selectedDays.filter { !it.equals(day, ignoreCase = true) }
+                                    } else {
+                                        selectedDays + day
+                                    }
+                                    viewModel.setWorkDays(newDays.joinToString(","))
+                                },
+                                label = {
+                                    Text(
+                                        text = day.take(2),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
         // Battery Optimization Section
         SectionHeader("Battery")
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -324,7 +431,7 @@ fun SettingsScreen(
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "🦉 MileOwl v2.0.0",
+                    text = "🦉 MileOwl v2.1.0",
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium
                 )
@@ -523,4 +630,44 @@ private fun SectionHeader(title: String) {
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier.padding(bottom = 8.dp)
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun WorkHourTimePicker(
+    value: String,
+    onValueChange: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val hours = (0..23).map { h -> String.format("%02d:00", h) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+            textStyle = MaterialTheme.typography.bodyMedium
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            hours.forEach { hour ->
+                DropdownMenuItem(
+                    text = { Text(hour) },
+                    onClick = {
+                        onValueChange(hour)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
 }

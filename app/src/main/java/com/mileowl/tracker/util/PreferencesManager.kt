@@ -26,6 +26,10 @@ class PreferencesManager(private val context: Context) {
         val HIGH_ACCURACY = booleanPreferencesKey("high_accuracy")
         val DEFAULT_CLASSIFICATION = stringPreferencesKey("default_classification")
         val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
+        val WORK_HOURS_ENABLED = booleanPreferencesKey("work_hours_enabled")
+        val WORK_START_HOUR = stringPreferencesKey("work_start_hour")
+        val WORK_END_HOUR = stringPreferencesKey("work_end_hour")
+        val WORK_DAYS = stringPreferencesKey("work_days")
     }
 
     val irsRateFlow: Flow<Double> = context.dataStore.data.map { prefs ->
@@ -99,5 +103,38 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun setOnboardingComplete(complete: Boolean) {
         context.dataStore.edit { it[Keys.ONBOARDING_COMPLETE] = complete }
+    }
+
+    // Work Hours preferences
+    val workHoursEnabledFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[Keys.WORK_HOURS_ENABLED] ?: false
+    }
+
+    val workStartHourFlow: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[Keys.WORK_START_HOUR] ?: "08:00"
+    }
+
+    val workEndHourFlow: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[Keys.WORK_END_HOUR] ?: "18:00"
+    }
+
+    val workDaysFlow: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[Keys.WORK_DAYS] ?: "Mon,Tue,Wed,Thu,Fri"
+    }
+
+    suspend fun setWorkHoursEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.WORK_HOURS_ENABLED] = enabled }
+    }
+
+    suspend fun setWorkStartHour(hour: String) {
+        context.dataStore.edit { it[Keys.WORK_START_HOUR] = hour }
+    }
+
+    suspend fun setWorkEndHour(hour: String) {
+        context.dataStore.edit { it[Keys.WORK_END_HOUR] = hour }
+    }
+
+    suspend fun setWorkDays(days: String) {
+        context.dataStore.edit { it[Keys.WORK_DAYS] = days }
     }
 }

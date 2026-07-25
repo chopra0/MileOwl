@@ -11,5 +11,6 @@ data class SavedLocation(
     val address: String? = null,
     val latitude: Double,
     val longitude: Double,
-    val radiusMeters: Float = 200f
+    val radiusMeters: Float = 200f,
+    val defaultClassification: TripClassification = TripClassification.UNCLASSIFIED
 )

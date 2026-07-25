@@ -136,4 +136,34 @@ class TripRepository(
 
     suspend fun deleteFrequentDrive(drive: FrequentDrive) =
         frequentDriveDao.deleteFrequentDrive(drive)
+
+    /**
+     * Find a frequent drive matching both start and end coordinates within the given radius.
+     */
+    suspend fun findMatchingFrequentDrive(
+        startLat: Double, startLon: Double,
+        endLat: Double, endLon: Double,
+        radiusMeters: Float = 300f
+    ): FrequentDrive? {
+        val drives = frequentDriveDao.getAllFrequentDrivesOnce()
+        return drives.firstOrNull { drive ->
+            val startResults = FloatArray(1)
+            android.location.Location.distanceBetween(
+                startLat, startLon,
+                drive.startLatitude, drive.startLongitude,
+                startResults
+            )
+            val endResults = FloatArray(1)
+            android.location.Location.distanceBetween(
+                endLat, endLon,
+                drive.endLatitude, drive.endLongitude,
+                endResults
+            )
+            startResults[0] <= radiusMeters && endResults[0] <= radiusMeters
+        }
+    }
+
+    // ── Counts ─────────────────────────────────────────────────────────
+
+    suspend fun getUnclassifiedTripCount(): Int = tripDao.getUnclassifiedTripCount()
 }

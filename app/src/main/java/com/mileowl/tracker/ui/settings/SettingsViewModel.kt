@@ -19,7 +19,11 @@ data class SettingsUiState(
     val vehicles: List<Vehicle> = emptyList(),
     val autoDetectionEnabled: Boolean = true,
     val highAccuracy: Boolean = true,
-    val defaultClassification: TripClassification = TripClassification.UNCLASSIFIED
+    val defaultClassification: TripClassification = TripClassification.UNCLASSIFIED,
+    val workHoursEnabled: Boolean = false,
+    val workStartHour: String = "08:00",
+    val workEndHour: String = "18:00",
+    val workDays: String = "Mon,Tue,Wed,Thu,Fri"
 )
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -29,18 +33,36 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val prefs = app.container.preferencesManager
 
     val uiState: StateFlow<SettingsUiState> = combine(
-        prefs.irsRateFlow,
-        repo.getAllVehicles(),
-        prefs.autoDetectionEnabledFlow,
-        prefs.highAccuracyFlow,
-        prefs.defaultClassificationFlow
-    ) { irsRate, vehicles, auto, accuracy, classification ->
-        SettingsUiState(
-            irsRate = irsRate,
-            vehicles = vehicles,
-            autoDetectionEnabled = auto,
-            highAccuracy = accuracy,
-            defaultClassification = classification
+        combine(
+            prefs.irsRateFlow,
+            repo.getAllVehicles(),
+            prefs.autoDetectionEnabledFlow,
+            prefs.highAccuracyFlow,
+            prefs.defaultClassificationFlow
+        ) { irsRate, vehicles, auto, accuracy, classification ->
+            SettingsUiState(
+                irsRate = irsRate,
+                vehicles = vehicles,
+                autoDetectionEnabled = auto,
+                highAccuracy = accuracy,
+                defaultClassification = classification
+            )
+        },
+        combine(
+            prefs.workHoursEnabledFlow,
+            prefs.workStartHourFlow,
+            prefs.workEndHourFlow,
+            prefs.workDaysFlow
+        ) { enabled, start, end, days ->
+            Triple(enabled, start, "$end|$days")
+        }
+    ) { base, workHours ->
+        val parts = workHours.third.split("|")
+        base.copy(
+            workHoursEnabled = workHours.first,
+            workStartHour = workHours.second,
+            workEndHour = parts[0],
+            workDays = parts[1]
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
 
@@ -92,5 +114,21 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setDefaultClassification(classification: TripClassification) {
         viewModelScope.launch { prefs.setDefaultClassification(classification) }
+    }
+
+    fun setWorkHoursEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefs.setWorkHoursEnabled(enabled) }
+    }
+
+    fun setWorkStartHour(hour: String) {
+        viewModelScope.launch { prefs.setWorkStartHour(hour) }
+    }
+
+    fun setWorkEndHour(hour: String) {
+        viewModelScope.launch { prefs.setWorkEndHour(hour) }
+    }
+
+    fun setWorkDays(days: String) {
+        viewModelScope.launch { prefs.setWorkDays(days) }
     }
 }

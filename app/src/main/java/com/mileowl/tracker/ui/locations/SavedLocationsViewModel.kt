@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mileowl.tracker.MileOwlApp
 import com.mileowl.tracker.data.model.SavedLocation
+import com.mileowl.tracker.data.model.TripClassification
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -19,7 +20,14 @@ class SavedLocationsViewModel(application: Application) : AndroidViewModel(appli
         repo.getAllSavedLocations()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun addLocation(name: String, address: String?, latitude: Double, longitude: Double, radius: Float) {
+    fun addLocation(
+        name: String,
+        address: String?,
+        latitude: Double,
+        longitude: Double,
+        radius: Float,
+        classification: TripClassification = TripClassification.UNCLASSIFIED
+    ) {
         viewModelScope.launch {
             repo.insertSavedLocation(
                 SavedLocation(
@@ -27,7 +35,8 @@ class SavedLocationsViewModel(application: Application) : AndroidViewModel(appli
                     address = address,
                     latitude = latitude,
                     longitude = longitude,
-                    radiusMeters = radius
+                    radiusMeters = radius,
+                    defaultClassification = classification
                 )
             )
         }

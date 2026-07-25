@@ -1,8 +1,10 @@
 package com.mileowl.tracker.ui.trips
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,16 +20,22 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,6 +57,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TripsScreen(
     onTripClick: (Long) -> Unit = {},
@@ -56,107 +65,175 @@ fun TripsScreen(
 ) {
     val trips by viewModel.trips.collectAsStateWithLifecycle()
     val filter by viewModel.filter.collectAsStateWithLifecycle()
+    val isSelectionMode by viewModel.isSelectionMode.collectAsStateWithLifecycle()
+    val selectedTrips by viewModel.selectedTrips.collectAsStateWithLifecycle()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Text(
-            text = "Trips",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Filter chips
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
         ) {
-            FilterChipItem(
-                label = "All",
-                selected = filter.classification == null,
-                onClick = { viewModel.setFilter(null) }
-            )
-            FilterChipItem(
-                label = "Business",
-                selected = filter.classification == TripClassification.BUSINESS,
-                onClick = { viewModel.setFilter(TripClassification.BUSINESS) },
-                color = BusinessGreen
-            )
-            FilterChipItem(
-                label = "Personal",
-                selected = filter.classification == TripClassification.PERSONAL,
-                onClick = { viewModel.setFilter(TripClassification.PERSONAL) },
-                color = PersonalBlue
-            )
-            FilterChipItem(
-                label = "Unclassified",
-                selected = filter.classification == TripClassification.UNCLASSIFIED,
-                onClick = { viewModel.setFilter(TripClassification.UNCLASSIFIED) },
-                color = UnclassifiedGray
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        if (trips.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "🦉",
-                        style = MaterialTheme.typography.displayLarge
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "No trips yet",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "Start driving and MileOwl will track automatically",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        } else {
             Text(
-                text = "${trips.size} trips",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = if (isSelectionMode) "${selectedTrips.size} selected" else "Trips",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(8.dp))
 
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Filter chips
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(
-                    items = trips,
-                    key = { it.id }
-                ) { trip ->
-                    SwipeableTripItem(
-                        trip = trip,
-                        onClick = { onTripClick(trip.id) },
-                        onClassify = { classification ->
-                            viewModel.classifyTrip(trip, classification)
+                FilterChipItem(
+                    label = "All",
+                    selected = filter.classification == null,
+                    onClick = { viewModel.setFilter(null) }
+                )
+                FilterChipItem(
+                    label = "Business",
+                    selected = filter.classification == TripClassification.BUSINESS,
+                    onClick = { viewModel.setFilter(TripClassification.BUSINESS) },
+                    color = BusinessGreen
+                )
+                FilterChipItem(
+                    label = "Personal",
+                    selected = filter.classification == TripClassification.PERSONAL,
+                    onClick = { viewModel.setFilter(TripClassification.PERSONAL) },
+                    color = PersonalBlue
+                )
+                FilterChipItem(
+                    label = "Unclassified",
+                    selected = filter.classification == TripClassification.UNCLASSIFIED,
+                    onClick = { viewModel.setFilter(TripClassification.UNCLASSIFIED) },
+                    color = UnclassifiedGray
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (trips.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "🦉",
+                            style = MaterialTheme.typography.displayLarge
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "No trips yet",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "Start driving and MileOwl will track automatically",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                Text(
+                    text = "${trips.size} trips",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    items(
+                        items = trips,
+                        key = { it.id }
+                    ) { trip ->
+                        if (isSelectionMode) {
+                            SelectableTripItem(
+                                trip = trip,
+                                isSelected = selectedTrips.contains(trip.id),
+                                onClick = { viewModel.toggleSelection(trip.id) }
+                            )
+                        } else {
+                            SwipeableTripItem(
+                                trip = trip,
+                                onClick = { onTripClick(trip.id) },
+                                onLongClick = { viewModel.enterSelectionMode(trip.id) },
+                                onClassify = { classification ->
+                                    viewModel.classifyTrip(trip, classification)
+                                }
+                            )
                         }
-                    )
+                    }
+                }
+
+                // Bottom action bar in selection mode
+                if (isSelectionMode && selectedTrips.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = { viewModel.bulkClassify(TripClassification.BUSINESS) },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = BusinessGreen
+                                    ),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Business")
+                                }
+                                Button(
+                                    onClick = { viewModel.bulkClassify(TripClassification.PERSONAL) },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = PersonalBlue
+                                    ),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Personal")
+                                }
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { viewModel.selectAllUnclassified() },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Select All Unclassified")
+                                }
+                                TextButton(
+                                    onClick = { viewModel.clearSelection() }
+                                ) {
+                                    Text("Cancel")
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun SwipeableTripItem(
     trip: Trip,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onClassify: (TripClassification) -> Unit
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
@@ -217,13 +294,51 @@ private fun SwipeableTripItem(
             }
         },
         content = {
-            TripListItem(trip = trip, onClick = onClick)
+            TripListItem(
+                trip = trip,
+                modifier = Modifier.combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick
+                )
+            )
         }
     )
 }
 
 @Composable
-private fun TripListItem(trip: Trip, onClick: () -> Unit) {
+private fun SelectableTripItem(
+    trip: Trip,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Selection checkbox
+            Icon(
+                imageVector = if (isSelected) Icons.Filled.CheckCircle else Icons.Outlined.Circle,
+                contentDescription = if (isSelected) "Selected" else "Not selected",
+                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Reuse trip info layout
+            TripInfoContent(trip = trip, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun TripListItem(trip: Trip, modifier: Modifier = Modifier) {
     val dateFormat = SimpleDateFormat("MMM d", Locale.US)
     val timeFormat = SimpleDateFormat("h:mm a", Locale.US)
 
@@ -234,9 +349,7 @@ private fun TripListItem(trip: Trip, onClick: () -> Unit) {
     }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
+        modifier = modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -264,59 +377,72 @@ private fun TripListItem(trip: Trip, onClick: () -> Unit) {
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Trip info
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = buildString {
-                        append(trip.startAddress?.take(25) ?: "Unknown")
-                        append(" → ")
-                        append(trip.endAddress?.take(25) ?: "Unknown")
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = buildString {
-                        append(dateFormat.format(Date(trip.startTime)))
-                        append(" • ")
-                        append(timeFormat.format(Date(trip.startTime)))
-                        // Show tripPurpose label if available, else fall back to free-text purpose
-                        val purposeLabel = trip.tripPurpose?.label ?: trip.purpose
-                        if (purposeLabel != null) {
-                            append(" • ")
-                            append(purposeLabel)
-                        }
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Distance and duration
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = String.format("%.1f mi", trip.distanceMiles),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = "${trip.durationMinutes} min",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            TripInfoContent(trip = trip, modifier = Modifier.weight(1f))
 
             Icon(
                 imageVector = Icons.Filled.ChevronRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun TripInfoContent(trip: Trip, modifier: Modifier = Modifier) {
+    val dateFormat = SimpleDateFormat("MMM d", Locale.US)
+    val timeFormat = SimpleDateFormat("h:mm a", Locale.US)
+
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Trip info
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = buildString {
+                    append(trip.startAddress?.take(25) ?: "Unknown")
+                    append(" → ")
+                    append(trip.endAddress?.take(25) ?: "Unknown")
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = buildString {
+                    append(dateFormat.format(Date(trip.startTime)))
+                    append(" • ")
+                    append(timeFormat.format(Date(trip.startTime)))
+                    // Show tripPurpose label if available, else fall back to free-text purpose
+                    val purposeLabel = trip.tripPurpose?.label ?: trip.purpose
+                    if (purposeLabel != null) {
+                        append(" • ")
+                        append(purposeLabel)
+                    }
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Distance and duration
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = String.format("%.1f mi", trip.distanceMiles),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = "${trip.durationMinutes} min",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

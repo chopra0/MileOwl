@@ -17,6 +17,9 @@ interface FrequentDriveDao {
     @Query("SELECT * FROM frequent_drives WHERE id = :id")
     suspend fun getFrequentDriveById(id: Long): FrequentDrive?
 
+    @Query("SELECT * FROM frequent_drives")
+    suspend fun getAllFrequentDrivesOnce(): List<FrequentDrive>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFrequentDrive(drive: FrequentDrive): Long
 
