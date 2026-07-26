@@ -101,6 +101,7 @@ fun PermissionScreen(
 
     // Dialog state
     var showDeniedDialog by remember { mutableStateOf<PermissionDeniedInfo?>(null) }
+    var showBackgroundLocationGuide by remember { mutableStateOf(false) }
 
     // Play Services
     val playServicesAvailable = remember {
@@ -154,9 +155,11 @@ fun PermissionScreen(
             if (hasBackgroundLocation || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
                 // Both already granted (pre-Q treats fg as sufficient)
                 currentStep = 1
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                // Android 11+: show guide dialog before opening location settings
+                showBackgroundLocationGuide = true
             } else {
-                // Android 10: shows a dialog. Android 11+: system opens the
-                // app's location permission page directly — no custom dialog needed.
+                // Android 10: shows a system dialog directly
                 backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
             }
         } else {
@@ -205,9 +208,13 @@ fun PermissionScreen(
                     }
                 } else if (!hasBackgroundLocation && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     // Foreground granted but background not — request it.
-                    // Android 10: shows dialog. Android 11+: system opens app's
-                    // location permission page with "Allow all the time" option.
-                    backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        // Android 11+: show guide dialog before opening location settings
+                        showBackgroundLocationGuide = true
+                    } else {
+                        // Android 10: shows a system dialog directly
+                        backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                    }
                 } else {
                     // Both foreground and background granted
                     currentStep = 1
@@ -356,6 +363,33 @@ fun PermissionScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+    }
+
+    // Guide dialog before opening location settings (Android 11+)
+    if (showBackgroundLocationGuide) {
+        AlertDialog(
+            onDismissRequest = { /* don't dismiss on outside tap */ },
+            title = {
+                Text(
+                    text = "One more step",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    "MileOwl needs to track your drives even when the app is closed.\n\n" +
+                    "On the next screen, tap \"Allow all the time\" to turn on background tracking."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showBackgroundLocationGuide = false
+                    backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                }) {
+                    Text("Continue")
+                }
+            }
+        )
     }
 
     // Explanation / Settings redirect dialog
