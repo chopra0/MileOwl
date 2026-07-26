@@ -1,5 +1,9 @@
 package com.mileowl.tracker.ui.settings
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -427,6 +431,82 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(20.dp))
 
         // About section
+        // Feedback & Support Section
+        SectionHeader("Feedback & Support")
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                val feedbackContext = androidx.compose.ui.platform.LocalContext.current
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            val deviceInfo = "App: MileOwl v2.1.0\n" +
+                                "Device: ${Build.MANUFACTURER} ${Build.MODEL}\n" +
+                                "Android: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})\n\n" +
+                                "Feedback:\n"
+                            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                data = Uri.parse("mailto:")
+                                putExtra(Intent.EXTRA_EMAIL, arrayOf("feedback@mileowl.app"))
+                                putExtra(Intent.EXTRA_SUBJECT, "MileOwl Feedback")
+                                putExtra(Intent.EXTRA_TEXT, deviceInfo)
+                            }
+                            try { feedbackContext.startActivity(intent) } catch (_: Exception) { }
+                        }
+                        .padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Send Feedback",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Report bugs or tell us what you think",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                data = Uri.parse("mailto:")
+                                putExtra(Intent.EXTRA_EMAIL, arrayOf("feedback@mileowl.app"))
+                                putExtra(Intent.EXTRA_SUBJECT, "MileOwl Feature Request")
+                                putExtra(Intent.EXTRA_TEXT, "I'd like to see this feature in MileOwl:\n\n")
+                            }
+                            try { feedbackContext.startActivity(intent) } catch (_: Exception) { }
+                        }
+                        .padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Request a Feature",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Suggest improvements or new features",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         SectionHeader("About")
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
