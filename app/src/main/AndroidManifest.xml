@@ -48,6 +48,12 @@
             android:exported="false"
             android:foregroundServiceType="location" />
 
+        <!-- Always-on Drive Monitor Service -->
+        <service
+            android:name=".service.DriveMonitorService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
         <!-- Activity Transition Receiver -->
         <receiver
             android:name=".service.ActivityTransitionReceiver"

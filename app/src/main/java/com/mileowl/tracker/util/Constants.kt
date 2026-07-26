@@ -22,4 +22,9 @@ object Constants {
     const val GPS_DISABLED_NOTIFICATION_ID = 2003
     const val UNCLASSIFIED_REMINDER_NOTIFICATION_ID = 2004
     const val UNCLASSIFIED_REMINDER_THRESHOLD = 3
+
+    // Drive monitor (always-on service)
+    const val MONITOR_CHANNEL_ID = "mileowl_monitor"
+    const val MONITOR_CHANNEL_NAME = "Drive Monitoring"
+    const val MONITOR_NOTIFICATION_ID = 1002
 }

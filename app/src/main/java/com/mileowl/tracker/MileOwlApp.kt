@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat
 import com.mileowl.tracker.data.db.MileOwlDatabase
 import com.mileowl.tracker.data.repository.TripRepository
 import com.mileowl.tracker.service.ActivityTransitionHelper
+import com.mileowl.tracker.service.DriveMonitorService
 import com.mileowl.tracker.util.Constants
 import com.mileowl.tracker.util.PreferencesManager
 
@@ -57,10 +58,17 @@ class MileOwlApp : Application() {
 
         if (hasFineLocation && hasActivityRecognition) {
             try {
-                ActivityTransitionHelper.registerTransitions(this)
-                Log.d("MileOwlApp", "Activity transitions registered on app start")
+                // Start the always-on monitor service to keep the app alive
+                DriveMonitorService.start(this)
+                Log.d("MileOwlApp", "Drive monitor service started")
             } catch (e: Exception) {
-                Log.w("MileOwlApp", "Could not register activity transitions", e)
+                // Fallback: register transitions directly
+                try {
+                    ActivityTransitionHelper.registerTransitions(this)
+                    Log.d("MileOwlApp", "Activity transitions registered (fallback)")
+                } catch (e2: Exception) {
+                    Log.w("MileOwlApp", "Could not register activity transitions", e2)
+                }
             }
         }
     }
