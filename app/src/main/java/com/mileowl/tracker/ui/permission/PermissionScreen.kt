@@ -257,7 +257,7 @@ fun PermissionScreen(
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Setting up...",
+            text = "Free mileage tracking. No catch.",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
