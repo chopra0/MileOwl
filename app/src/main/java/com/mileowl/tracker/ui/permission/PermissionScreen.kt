@@ -150,19 +150,13 @@ fun PermissionScreen(
         val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
         hasFineLocation = fineGranted
         if (fineGranted) {
-            // Foreground granted — now handle background immediately
+            // Foreground granted — now request background ("Allow all the time")
             if (hasBackgroundLocation || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
                 // Both already granted (pre-Q treats fg as sufficient)
                 currentStep = 1
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                // Android 11+: must go to Settings for "Allow all the time"
-                showDeniedDialog = PermissionDeniedInfo(
-                    title = "Allow Location All The Time",
-                    reason = "MileOwl needs location access all the time to track your trips when the screen is off or you switch apps. \"While using the app\" is not sufficient for automatic mileage tracking.",
-                    steps = "1. Tap 'Open Settings' below\n2. Tap 'Location'\n3. Select 'Allow all the time'"
-                )
             } else {
-                // Android 10: can request background via launcher
+                // Android 10: shows a dialog. Android 11+: system opens the
+                // app's location permission page directly — no custom dialog needed.
                 backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
             }
         } else {
@@ -185,11 +179,8 @@ fun PermissionScreen(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         hasNotification = granted
-        if (granted) {
-            currentStep = 3
-        } else {
-            notificationRequested = true
-        }
+        // Notifications are optional — move on regardless
+        currentStep = 3
     }
 
     // ─── Auto-fire permissions in sequence ───────────────────────────
@@ -202,7 +193,7 @@ fun PermissionScreen(
                         showDeniedDialog = PermissionDeniedInfo(
                             title = "Location Permission Required",
                             reason = "Location permission is required to record your driving routes and calculate mileage for IRS deductions.",
-                            steps = "1. Tap 'Open Settings' below\n2. Tap 'Location'\n3. Select 'Allow all the time'"
+                            steps = "1. Tap 'Open Settings' below\n2. Tap 'Permissions'\n3. Tap 'Location'\n4. Select 'Allow all the time'"
                         )
                     } else {
                         locationLauncher.launch(
@@ -213,16 +204,10 @@ fun PermissionScreen(
                         )
                     }
                 } else if (!hasBackgroundLocation && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    // Foreground granted but background not — need "Allow all the time"
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        showDeniedDialog = PermissionDeniedInfo(
-                            title = "Allow Location All The Time",
-                            reason = "MileOwl needs location access all the time to track your trips when the screen is off or you switch apps. \"While using the app\" is not sufficient for automatic mileage tracking.",
-                            steps = "1. Tap 'Open Settings' below\n2. Tap 'Location'\n3. Select 'Allow all the time'"
-                        )
-                    } else {
-                        backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-                    }
+                    // Foreground granted but background not — request it.
+                    // Android 10: shows dialog. Android 11+: system opens app's
+                    // location permission page with "Allow all the time" option.
+                    backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
                 } else {
                     // Both foreground and background granted
                     currentStep = 1
@@ -235,7 +220,7 @@ fun PermissionScreen(
                     showDeniedDialog = PermissionDeniedInfo(
                         title = "Activity Recognition Required",
                         reason = "Activity Recognition lets MileOwl automatically detect when you start driving, so trips are tracked without manual action.",
-                        steps = "1. Tap 'Open Settings' below\n2. Tap 'Physical activity'\n3. Toggle it on"
+                        steps = "1. Tap 'Open Settings' below\n2. Tap 'Permissions'\n3. Tap 'Physical activity'\n4. Toggle it on"
                     )
                 } else {
                     activityLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
@@ -245,11 +230,8 @@ fun PermissionScreen(
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || hasNotification) {
                     currentStep = 3
                 } else if (isPermanentlyDenied(activity, Manifest.permission.POST_NOTIFICATIONS, notificationRequested)) {
-                    showDeniedDialog = PermissionDeniedInfo(
-                        title = "Notifications Permission",
-                        reason = "Notifications allow MileOwl to show tracking status and alert you about issues that could affect trip detection.",
-                        steps = "1. Tap 'Open Settings' below\n2. Tap 'Notifications'\n3. Toggle 'Allow notifications' on"
-                    )
+                    // Notifications are optional — skip silently if permanently denied
+                    currentStep = 3
                 } else {
                     notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
