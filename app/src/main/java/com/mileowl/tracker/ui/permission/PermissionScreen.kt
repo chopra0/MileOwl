@@ -90,7 +90,7 @@ fun PermissionScreen(
     }
 
     // ─── Auto-fire state ────────────────────────────────────────────
-    // Steps: 0 = Location (fg + bg combined), 1 = Activity Recognition, 2 = Notifications, 3 = done
+    // Steps: 0 = Location (fg + bg combined), 1 = Activity Recognition, 2 = Notifications, 3 = Battery optimization, 4 = done
     var currentStep by remember { mutableStateOf(0) }
     var retryTrigger by remember { mutableStateOf(0) }
 
@@ -243,7 +243,23 @@ fun PermissionScreen(
                     notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
             }
-            // Step 3: all done, nothing to auto-fire
+            3 -> {
+                // Request battery optimization exemption so Android won't kill trip detection
+                val pm = context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+                if (!pm.isIgnoringBatteryOptimizations(context.packageName)) {
+                    try {
+                        val intent = Intent(
+                            android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                        ).apply {
+                            data = android.net.Uri.parse("package:${context.packageName}")
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        context.startActivity(intent)
+                    } catch (_: Exception) { }
+                }
+                currentStep = 4
+            }
+            // Step 4: all done, nothing to auto-fire
         }
     }
 
