@@ -570,29 +570,10 @@ private fun isPermanentlyDenied(
 
 private fun openAppSettings(context: Context) {
     try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 11+: open the app's permission list directly
-            val intent = Intent(Settings.ACTION_MANAGE_APP_PERMISSIONS).apply {
-                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            context.startActivity(intent)
-        } else {
-            // Android 10 and below: fall back to app details
-            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                data = Uri.parse("package:${context.packageName}")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            context.startActivity(intent)
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.parse("package:${context.packageName}")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
-    } catch (_: Exception) {
-        // Fallback if the permission intent isn't available on this device
-        try {
-            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                data = Uri.parse("package:${context.packageName}")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            context.startActivity(intent)
-        } catch (_: Exception) { }
-    }
+        context.startActivity(intent)
+    } catch (_: Exception) { }
 }
