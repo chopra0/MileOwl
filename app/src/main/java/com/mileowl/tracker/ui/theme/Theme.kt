@@ -17,17 +17,18 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val LightColorScheme = lightColorScheme(
-    primary = Teal700,
+    primary = Emerald800,
     onPrimary = Color.White,
-    primaryContainer = Teal200,
-    onPrimaryContainer = TealDark,
+    primaryContainer = Emerald300,
+    onPrimaryContainer = EmeraldDark,
     secondary = Amber500,
-    onSecondary = Color.Black,
-    secondaryContainer = Color(0xFFFFECB3),
+    onSecondary = Color.White,
+    secondaryContainer = AmberLight,
     onSecondaryContainer = Color(0xFF3E2723),
     tertiary = BusinessGreen,
     background = SurfaceLight,
     surface = CardLight,
+    surfaceVariant = Color(0xFFF1F3F0),
     onBackground = Color(0xFF1C1B1F),
     onSurface = Color(0xFF1C1B1F),
     error = ErrorRed,
@@ -35,17 +36,18 @@ private val LightColorScheme = lightColorScheme(
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Teal200,
-    onPrimary = TealDark,
-    primaryContainer = Teal700,
-    onPrimaryContainer = Teal200,
+    primary = Emerald300,
+    onPrimary = EmeraldDark,
+    primaryContainer = Emerald800,
+    onPrimaryContainer = Emerald300,
     secondary = Amber500,
     onSecondary = Color.Black,
     secondaryContainer = Amber700,
-    onSecondaryContainer = Color(0xFFFFECB3),
+    onSecondaryContainer = AmberLight,
     tertiary = Color(0xFF81C784),
     background = SurfaceDark,
     surface = CardDark,
+    surfaceVariant = Color(0xFF2C2C2E),
     onBackground = Color(0xFFE6E1E5),
     onSurface = Color(0xFFE6E1E5),
     error = Color(0xFFEF5350),
@@ -55,7 +57,7 @@ private val DarkColorScheme = darkColorScheme(
 @Composable
 fun MileOwlTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
