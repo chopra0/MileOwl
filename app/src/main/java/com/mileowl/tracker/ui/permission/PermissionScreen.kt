@@ -159,7 +159,7 @@ fun PermissionScreen(
                 showDeniedDialog = PermissionDeniedInfo(
                     title = "Allow Location All The Time",
                     reason = "MileOwl needs location access all the time to track your trips when the screen is off or you switch apps. \"While using the app\" is not sufficient for automatic mileage tracking.",
-                    steps = "1. Tap 'Open Settings' below\n2. Tap 'Permissions'\n3. Tap 'Location'\n4. Select 'Allow all the time'"
+                    steps = "1. Tap 'Open Settings' below\n2. Tap 'Location'\n3. Select 'Allow all the time'"
                 )
             } else {
                 // Android 10: can request background via launcher
@@ -202,7 +202,7 @@ fun PermissionScreen(
                         showDeniedDialog = PermissionDeniedInfo(
                             title = "Location Permission Required",
                             reason = "Location permission is required to record your driving routes and calculate mileage for IRS deductions.",
-                            steps = "1. Tap 'Open Settings' below\n2. Tap 'Permissions'\n3. Tap 'Location'\n4. Select 'Allow all the time'"
+                            steps = "1. Tap 'Open Settings' below\n2. Tap 'Location'\n3. Select 'Allow all the time'"
                         )
                     } else {
                         locationLauncher.launch(
@@ -218,7 +218,7 @@ fun PermissionScreen(
                         showDeniedDialog = PermissionDeniedInfo(
                             title = "Allow Location All The Time",
                             reason = "MileOwl needs location access all the time to track your trips when the screen is off or you switch apps. \"While using the app\" is not sufficient for automatic mileage tracking.",
-                            steps = "1. Tap 'Open Settings' below\n2. Tap 'Permissions'\n3. Tap 'Location'\n4. Select 'Allow all the time'"
+                            steps = "1. Tap 'Open Settings' below\n2. Tap 'Location'\n3. Select 'Allow all the time'"
                         )
                     } else {
                         backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
@@ -235,7 +235,7 @@ fun PermissionScreen(
                     showDeniedDialog = PermissionDeniedInfo(
                         title = "Activity Recognition Required",
                         reason = "Activity Recognition lets MileOwl automatically detect when you start driving, so trips are tracked without manual action.",
-                        steps = "1. Tap 'Open Settings' below\n2. Tap 'Permissions'\n3. Tap 'Physical activity'\n4. Toggle it on"
+                        steps = "1. Tap 'Open Settings' below\n2. Tap 'Physical activity'\n3. Toggle it on"
                     )
                 } else {
                     activityLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
@@ -570,10 +570,29 @@ private fun isPermanentlyDenied(
 
 private fun openAppSettings(context: Context) {
     try {
-        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.parse("package:${context.packageName}")
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11+: open the app's permission list directly
+            val intent = Intent(Settings.ACTION_MANAGE_APP_PERMISSIONS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
+        } else {
+            // Android 10 and below: fall back to app details
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.parse("package:${context.packageName}")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
         }
-        context.startActivity(intent)
-    } catch (_: Exception) { }
+    } catch (_: Exception) {
+        // Fallback if the permission intent isn't available on this device
+        try {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.parse("package:${context.packageName}")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
+        } catch (_: Exception) { }
+    }
 }
