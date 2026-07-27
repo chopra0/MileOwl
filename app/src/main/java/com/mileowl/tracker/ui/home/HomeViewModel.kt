@@ -16,6 +16,7 @@ import java.util.Calendar
 
 data class HomeUiState(
     val isTracking: Boolean = false,
+    val currentTripMiles: Double = 0.0,
     val monthBusinessMiles: Double = 0.0,
     val monthPersonalMiles: Double = 0.0,
     val monthTotalTrips: Int = 0,
@@ -31,20 +32,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val repo = app.container.tripRepository
     private val prefs = app.container.preferencesManager
 
-    private val _refreshTrigger = MutableStateFlow(0)
-
     val uiState: StateFlow<HomeUiState> = combine(
         repo.getTripsInRange(startOfMonth(), endOfMonth()),
         repo.getTripsInRange(startOfYear(), endOfYear()),
         prefs.irsRateFlow,
-        _refreshTrigger
-    ) { monthTrips, yearTrips, irsRate, _ ->
+        TripTrackingService.isTrackingFlow,
+        TripTrackingService.currentDistanceMilesFlow
+    ) { monthTrips, yearTrips, irsRate, tracking, currentMiles ->
         val monthBusiness = monthTrips.filter { it.classification == TripClassification.BUSINESS }
         val monthPersonal = monthTrips.filter { it.classification == TripClassification.PERSONAL }
         val ytdBusiness = yearTrips.filter { it.classification == TripClassification.BUSINESS }
 
         HomeUiState(
-            isTracking = TripTrackingService.isTracking,
+            isTracking = tracking,
+            currentTripMiles = currentMiles,
             monthBusinessMiles = monthBusiness.sumOf { it.distanceMiles },
             monthPersonalMiles = monthPersonal.sumOf { it.distanceMiles },
             monthTotalTrips = monthTrips.size,
@@ -54,10 +55,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             recentTrips = monthTrips.take(5)
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
-
-    fun refresh() {
-        _refreshTrigger.value++
-    }
 
     private fun startOfMonth(): Long {
         val cal = Calendar.getInstance()

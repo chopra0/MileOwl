@@ -214,7 +214,7 @@ fun HomeScreen(
 
             // Tracking Status Card
             item {
-                TrackingStatusCard(isTracking = state.isTracking)
+                TrackingStatusCard(isTracking = state.isTracking, currentMiles = state.currentTripMiles)
             }
 
             // Monthly Stats Card
@@ -316,12 +316,11 @@ fun HomeScreen(
         // FAB for manual trip start/stop
         FloatingActionButton(
             onClick = {
-                if (TripTrackingService.isTracking) {
+                if (state.isTracking) {
                     stopManualTrip(context)
                 } else {
                     startManualTrip(context)
                 }
-                viewModel.refresh()
             },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -409,7 +408,7 @@ private fun WarningBanner(
 // ─── Existing composables (unchanged) ───────────────────────────────
 
 @Composable
-private fun TrackingStatusCard(isTracking: Boolean) {
+private fun TrackingStatusCard(isTracking: Boolean, currentMiles: Double = 0.0) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -433,7 +432,7 @@ private fun TrackingStatusCard(isTracking: Boolean) {
                     .background(if (isTracking) TrackingGreen else UnclassifiedGray)
             )
             Spacer(modifier = Modifier.width(12.dp))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = if (isTracking) "Currently Tracking" else "Not Tracking",
                     style = MaterialTheme.typography.titleMedium,
@@ -441,12 +440,20 @@ private fun TrackingStatusCard(isTracking: Boolean) {
                 )
                 Text(
                     text = if (isTracking) {
-                        "Recording trip in progress..."
+                        "Recording trip in progress…"
                     } else {
                         "Auto-detection active"
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (isTracking) {
+                Text(
+                    text = String.format("%.1f mi", currentMiles),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = TrackingGreen
                 )
             }
         }

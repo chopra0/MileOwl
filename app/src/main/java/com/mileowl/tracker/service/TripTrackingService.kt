@@ -42,8 +42,13 @@ class TripTrackingService : Service() {
 
     companion object {
         private const val TAG = "TripTrackingService"
-        var isTracking = false
-            private set
+
+        private val _isTracking = kotlinx.coroutines.flow.MutableStateFlow(false)
+        val isTrackingFlow: kotlinx.coroutines.flow.StateFlow<Boolean> = _isTracking
+        val isTracking: Boolean get() = _isTracking.value
+
+        private val _currentDistanceMiles = kotlinx.coroutines.flow.MutableStateFlow(0.0)
+        val currentDistanceMilesFlow: kotlinx.coroutines.flow.StateFlow<Double> = _currentDistanceMiles
     }
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -89,7 +94,8 @@ class TripTrackingService : Service() {
         // Prompt for battery optimization exemption if not already granted
         checkBatteryExemption()
 
-        isTracking = true
+        _isTracking.value = true
+        _currentDistanceMiles.value = 0.0
         totalDistanceMeters = 0.0
         pointCount = 0
         startLocation = null
@@ -145,7 +151,7 @@ class TripTrackingService : Service() {
 
     private fun stopTracking() {
         Log.d(TAG, "Stopping trip tracking")
-        isTracking = false
+        _isTracking.value = false
         stopLocationUpdates()
 
         // Finalize the trip
@@ -365,8 +371,11 @@ class TripTrackingService : Service() {
             }
         }
 
-        // Update notification
+        // Update live distance for UI
         val distanceMiles = totalDistanceMeters / Constants.METERS_PER_MILE
+        _currentDistanceMiles.value = distanceMiles
+
+        // Update notification
         val notification = buildNotification(distanceMiles)
         val nm = getSystemService(NotificationManager::class.java)
         nm.notify(Constants.TRACKING_NOTIFICATION_ID, notification)
@@ -418,7 +427,7 @@ class TripTrackingService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        isTracking = false
+        _isTracking.value = false
         stopLocationUpdates()
         serviceScope.cancel()
     }
