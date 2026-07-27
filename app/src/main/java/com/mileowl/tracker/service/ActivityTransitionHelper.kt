@@ -63,7 +63,7 @@ object ActivityTransitionHelper {
      */
     fun registerTransitions(context: Context): Boolean {
         if (!isPlayServicesAvailable(context)) {
-            Log.w(TAG, "Google Play Services not available — skipping activity transition registration")
+            DebugLog.log(context, "Registration", "❌ Google Play Services not available")
             return false
         }
 
