@@ -43,6 +43,9 @@ interface TripDao {
     @Query("SELECT * FROM trips WHERE id = :id")
     fun getTripById(id: Long): Flow<Trip?>
 
+    @Query("SELECT * FROM trips WHERE id = :id")
+    suspend fun getTripByIdOnce(id: Long): Trip?
+
     @Query("SELECT id FROM trips WHERE isActive = 1 LIMIT 1")
     suspend fun getActiveTripId(): Long?
 

@@ -18,6 +18,7 @@ import androidx.core.app.NotificationCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
+import com.mileowl.tracker.util.DebugLog
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -120,6 +121,7 @@ class TripTrackingService : Service() {
                     isActive = true
                 )
                 currentTripId = repo.insertTrip(trip)
+                DebugLog.log(applicationContext, "Trip", "New trip started (id=$currentTripId)", notify = false)
                 Log.d(TAG, "Created trip with id=$currentTripId")
                 return@collect
             }
@@ -154,7 +156,7 @@ class TripTrackingService : Service() {
         _isTracking.value = false
         stopLocationUpdates()
 
-        // Finalize the trip
+        // Finalize the trip, then shut down
         serviceScope.launch {
             try {
                 val app = applicationContext as MileOwlApp
@@ -165,6 +167,8 @@ class TripTrackingService : Service() {
                     val points = repo.getLocationPointsForTrip(currentTripId)
                     val distanceMiles = DistanceCalculator.calculateDistanceMiles(points)
                     val now = System.currentTimeMillis()
+
+                    DebugLog.log(applicationContext, "Save", "Saving trip: $pointCount GPS points, ${String.format("%.1f", distanceMiles)} mi", notify = false)
 
                     // Reverse geocode start and end
                     val startAddr = startLocation?.let {
@@ -182,109 +186,113 @@ class TripTrackingService : Service() {
                         repo.findNearbyLocation(it.latitude, it.longitude)
                     }
 
-                    val tripFlow = repo.getTripById(currentTripId)
-                    tripFlow.collect { trip ->
-                        if (trip != null) {
-                            // ── Auto-classification logic ──
-                            val defaultClassification = prefs.defaultClassificationFlow.first()
-                            var autoClassification = defaultClassification
-                            var autoTripPurpose: TripPurpose? = null
+                    val trip = repo.getTripByIdOnce(currentTripId)
+                    if (trip != null) {
+                        // ── Auto-classification logic ──
+                        val defaultClassification = prefs.defaultClassificationFlow.first()
+                        var autoClassification = defaultClassification
+                        var autoTripPurpose: TripPurpose? = null
 
-                            // 1. Work hours check — outside work hours → Personal
-                            val workHoursEnabled = prefs.workHoursEnabledFlow.first()
-                            if (workHoursEnabled) {
-                                val workStart = prefs.workStartHourFlow.first()
-                                val workEnd = prefs.workEndHourFlow.first()
-                                val workDays = prefs.workDaysFlow.first()
+                        // 1. Work hours check — outside work hours → Personal
+                        val workHoursEnabled = prefs.workHoursEnabledFlow.first()
+                        if (workHoursEnabled) {
+                            val workStart = prefs.workStartHourFlow.first()
+                            val workEnd = prefs.workEndHourFlow.first()
+                            val workDays = prefs.workDaysFlow.first()
 
-                                val cal = java.util.Calendar.getInstance().apply { timeInMillis = trip.startTime }
-                                val dayOfWeek = cal.getDisplayName(
-                                    java.util.Calendar.DAY_OF_WEEK,
-                                    java.util.Calendar.SHORT,
-                                    java.util.Locale.US
-                                ) ?: ""
-                                val hourMin = String.format(
-                                    "%02d:%02d",
-                                    cal.get(java.util.Calendar.HOUR_OF_DAY),
-                                    cal.get(java.util.Calendar.MINUTE)
-                                )
-
-                                val isWorkDay = workDays.split(",").any {
-                                    it.trim().equals(dayOfWeek, ignoreCase = true)
-                                }
-                                val isWorkHour = hourMin >= workStart && hourMin < workEnd
-
-                                if (!isWorkDay || !isWorkHour) {
-                                    autoClassification = TripClassification.PERSONAL
-                                }
-                            }
-
-                            // 2. Saved location classification (overrides work hours)
-                            if (endSaved != null && endSaved.defaultClassification != TripClassification.UNCLASSIFIED) {
-                                autoClassification = endSaved.defaultClassification
-                            } else if (startSaved != null && startSaved.defaultClassification != TripClassification.UNCLASSIFIED) {
-                                autoClassification = startSaved.defaultClassification
-                            }
-
-                            // 3. FrequentDrive matching (start+end pair — most specific, wins)
-                            val matchingDrive = repo.findMatchingFrequentDrive(
-                                startLocation?.latitude ?: 0.0,
-                                startLocation?.longitude ?: 0.0,
-                                lastLocation?.latitude ?: 0.0,
-                                lastLocation?.longitude ?: 0.0
+                            val cal = java.util.Calendar.getInstance().apply { timeInMillis = trip.startTime }
+                            val dayOfWeek = cal.getDisplayName(
+                                java.util.Calendar.DAY_OF_WEEK,
+                                java.util.Calendar.SHORT,
+                                java.util.Locale.US
+                            ) ?: ""
+                            val hourMin = String.format(
+                                "%02d:%02d",
+                                cal.get(java.util.Calendar.HOUR_OF_DAY),
+                                cal.get(java.util.Calendar.MINUTE)
                             )
-                            if (matchingDrive != null && matchingDrive.defaultPurpose != null) {
-                                autoTripPurpose = matchingDrive.defaultPurpose
-                                autoClassification = matchingDrive.defaultPurpose.toClassification()
-                            }
 
-                            // Only auto-classify if trip is still UNCLASSIFIED (respect manual overrides)
-                            val finalClassification = if (trip.classification == TripClassification.UNCLASSIFIED) {
-                                autoClassification
-                            } else {
-                                trip.classification
+                            val isWorkDay = workDays.split(",").any {
+                                it.trim().equals(dayOfWeek, ignoreCase = true)
                             }
-                            val finalPurpose = if (trip.classification == TripClassification.UNCLASSIFIED) {
-                                autoTripPurpose ?: trip.tripPurpose
-                            } else {
-                                trip.tripPurpose
-                            }
+                            val isWorkHour = hourMin >= workStart && hourMin < workEnd
 
-                            val updatedTrip = trip.copy(
-                                endTime = now,
-                                startLatitude = startLocation?.latitude ?: 0.0,
-                                startLongitude = startLocation?.longitude ?: 0.0,
-                                endLatitude = lastLocation?.latitude,
-                                endLongitude = lastLocation?.longitude,
-                                startAddress = startSaved?.name ?: startAddr,
-                                endAddress = endSaved?.name ?: endAddr,
-                                distanceMiles = distanceMiles,
-                                durationMinutes = DistanceCalculator.durationMinutes(
-                                    trip.startTime, now
-                                ),
-                                isActive = false,
-                                classification = finalClassification,
-                                tripPurpose = finalPurpose
-                            )
-                            repo.updateTrip(updatedTrip)
-                            Log.d(TAG, "Trip $currentTripId finalized: $distanceMiles mi, classification=$finalClassification")
-
-                            // Check unclassified trip count and remind if threshold met
-                            val unclassifiedCount = repo.getUnclassifiedTripCount()
-                            if (unclassifiedCount >= Constants.UNCLASSIFIED_REMINDER_THRESHOLD) {
-                                showUnclassifiedReminder(unclassifiedCount)
+                            if (!isWorkDay || !isWorkHour) {
+                                autoClassification = TripClassification.PERSONAL
                             }
                         }
-                        return@collect
+
+                        // 2. Saved location classification (overrides work hours)
+                        if (endSaved != null && endSaved.defaultClassification != TripClassification.UNCLASSIFIED) {
+                            autoClassification = endSaved.defaultClassification
+                        } else if (startSaved != null && startSaved.defaultClassification != TripClassification.UNCLASSIFIED) {
+                            autoClassification = startSaved.defaultClassification
+                        }
+
+                        // 3. FrequentDrive matching (start+end pair — most specific, wins)
+                        val matchingDrive = repo.findMatchingFrequentDrive(
+                            startLocation?.latitude ?: 0.0,
+                            startLocation?.longitude ?: 0.0,
+                            lastLocation?.latitude ?: 0.0,
+                            lastLocation?.longitude ?: 0.0
+                        )
+                        if (matchingDrive != null && matchingDrive.defaultPurpose != null) {
+                            autoTripPurpose = matchingDrive.defaultPurpose
+                            autoClassification = matchingDrive.defaultPurpose.toClassification()
+                        }
+
+                        // Only auto-classify if trip is still UNCLASSIFIED (respect manual overrides)
+                        val finalClassification = if (trip.classification == TripClassification.UNCLASSIFIED) {
+                            autoClassification
+                        } else {
+                            trip.classification
+                        }
+                        val finalPurpose = if (trip.classification == TripClassification.UNCLASSIFIED) {
+                            autoTripPurpose ?: trip.tripPurpose
+                        } else {
+                            trip.tripPurpose
+                        }
+
+                        val updatedTrip = trip.copy(
+                            endTime = now,
+                            startLatitude = startLocation?.latitude ?: 0.0,
+                            startLongitude = startLocation?.longitude ?: 0.0,
+                            endLatitude = lastLocation?.latitude,
+                            endLongitude = lastLocation?.longitude,
+                            startAddress = startSaved?.name ?: startAddr,
+                            endAddress = endSaved?.name ?: endAddr,
+                            distanceMiles = distanceMiles,
+                            durationMinutes = DistanceCalculator.durationMinutes(
+                                trip.startTime, now
+                            ),
+                            isActive = false,
+                            classification = finalClassification,
+                            tripPurpose = finalPurpose
+                        )
+                        repo.updateTrip(updatedTrip)
+                        DebugLog.log(applicationContext, "Save", "✅ Trip saved: ${String.format("%.1f", distanceMiles)} mi")
+                        Log.d(TAG, "Trip $currentTripId finalized: $distanceMiles mi, classification=$finalClassification")
+
+                        // Check unclassified trip count and remind if threshold met
+                        val unclassifiedCount = repo.getUnclassifiedTripCount()
+                        if (unclassifiedCount >= Constants.UNCLASSIFIED_REMINDER_THRESHOLD) {
+                            showUnclassifiedReminder(unclassifiedCount)
+                        }
+                    } else {
+                        DebugLog.log(applicationContext, "Save", "❌ Trip not found in database")
                     }
+                } else {
+                    DebugLog.log(applicationContext, "Save", "❌ No trip to save (id=$currentTripId)")
                 }
             } catch (e: Exception) {
+                DebugLog.log(applicationContext, "Save", "❌ Error: ${e.message}")
                 Log.e(TAG, "Error finalizing trip", e)
             }
-        }
 
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+            // Now safe to shut down — trip is saved
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
     }
 
     /**
@@ -354,6 +362,13 @@ class TripTrackingService : Service() {
         }
         lastLocation = location
         pointCount++
+        if (pointCount == 1) {
+            DebugLog.log(applicationContext, "GPS", "First point recorded", notify = false)
+        }
+        if (pointCount % 10 == 0) {
+            val miles = totalDistanceMeters / Constants.METERS_PER_MILE
+            DebugLog.log(applicationContext, "GPS", "$pointCount points, ${String.format("%.1f", miles)} mi so far", notify = false)
+        }
 
         // Save location point
         serviceScope.launch {

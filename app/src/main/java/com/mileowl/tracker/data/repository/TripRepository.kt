@@ -38,6 +38,8 @@ class TripRepository(
 
     fun getTripById(id: Long): Flow<Trip?> = tripDao.getTripById(id)
 
+    suspend fun getTripByIdOnce(id: Long): Trip? = tripDao.getTripByIdOnce(id)
+
     suspend fun getActiveTripId(): Long? = tripDao.getActiveTripId()
 
     suspend fun getActiveTrip(): Trip? = tripDao.getActiveTrip()
