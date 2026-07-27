@@ -57,18 +57,20 @@ class MileOwlApp : Application() {
         }
 
         if (hasFineLocation && hasActivityRecognition) {
+            // Register transitions directly first (works even if service fails)
             try {
-                // Start the always-on monitor service to keep the app alive
+                ActivityTransitionHelper.registerTransitions(this)
+                Log.d("MileOwlApp", "Activity transitions registered")
+            } catch (e: Exception) {
+                Log.w("MileOwlApp", "Could not register activity transitions", e)
+            }
+
+            // Then start the always-on monitor service (adds speed-based backup detection)
+            try {
                 DriveMonitorService.start(this)
                 Log.d("MileOwlApp", "Drive monitor service started")
             } catch (e: Exception) {
-                // Fallback: register transitions directly
-                try {
-                    ActivityTransitionHelper.registerTransitions(this)
-                    Log.d("MileOwlApp", "Activity transitions registered (fallback)")
-                } catch (e2: Exception) {
-                    Log.w("MileOwlApp", "Could not register activity transitions", e2)
-                }
+                Log.w("MileOwlApp", "Could not start monitor service", e)
             }
         }
     }
