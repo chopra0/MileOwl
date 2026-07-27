@@ -45,7 +45,6 @@ class ActivityTransitionReceiver : BroadcastReceiver() {
             DebugLog.log(context, "Detection", "$transitionName $activityName")
 
             val isVehicle = activityType == DetectedActivity.IN_VEHICLE
-                    || activityType == DetectedActivity.ON_BICYCLE
 
             if (isVehicle && transitionType == ActivityTransition.ACTIVITY_TRANSITION_ENTER) {
                 DebugLog.log(context, "Tracking", "Starting trip recording")
