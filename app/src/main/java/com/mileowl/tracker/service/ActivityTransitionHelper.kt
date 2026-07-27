@@ -11,6 +11,7 @@ import com.google.android.gms.location.ActivityTransition
 import com.google.android.gms.location.ActivityTransitionRequest
 import com.google.android.gms.location.DetectedActivity
 import com.mileowl.tracker.util.Constants
+import com.mileowl.tracker.util.DebugLog
 
 object ActivityTransitionHelper {
 
@@ -79,17 +80,17 @@ object ActivityTransitionHelper {
             val task = ActivityRecognition.getClient(context)
                 .requestActivityTransitionUpdates(request, pendingIntent)
             task.addOnSuccessListener {
-                Log.d(TAG, "Activity transition updates registered successfully")
+                DebugLog.log(context, "Registration", "✅ Signed up for drive detection")
             }
             task.addOnFailureListener { e ->
-                Log.e(TAG, "Failed to register activity transitions", e)
+                DebugLog.log(context, "Registration", "❌ Failed: ${e.message}")
             }
             true
         } catch (e: SecurityException) {
-            Log.e(TAG, "Missing ACTIVITY_RECOGNITION permission", e)
+            DebugLog.log(context, "Registration", "❌ Missing permission: ${e.message}")
             false
         } catch (e: Exception) {
-            Log.e(TAG, "Unexpected error registering activity transitions", e)
+            DebugLog.log(context, "Registration", "❌ Error: ${e.message}")
             false
         }
     }

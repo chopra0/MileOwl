@@ -9,6 +9,7 @@ import com.google.android.gms.location.ActivityTransition
 import com.google.android.gms.location.ActivityTransitionResult
 import com.google.android.gms.location.DetectedActivity
 import com.mileowl.tracker.util.Constants
+import com.mileowl.tracker.util.DebugLog
 
 class ActivityTransitionReceiver : BroadcastReceiver() {
 
@@ -17,8 +18,10 @@ class ActivityTransitionReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        DebugLog.log(context, "Signal", "Received broadcast from Google", notify = false)
+
         if (!ActivityTransitionResult.hasResult(intent)) {
-            Log.d(TAG, "No activity transition result in intent")
+            DebugLog.log(context, "Signal", "Broadcast had no transition data")
             return
         }
 
@@ -28,16 +31,27 @@ class ActivityTransitionReceiver : BroadcastReceiver() {
             val activityType = event.activityType
             val transitionType = event.transitionType
 
-            Log.d(TAG, "Transition: activity=$activityType, transition=$transitionType")
+            val activityName = when (activityType) {
+                DetectedActivity.IN_VEHICLE -> "Driving"
+                DetectedActivity.ON_BICYCLE -> "Biking"
+                else -> "Activity($activityType)"
+            }
+            val transitionName = when (transitionType) {
+                ActivityTransition.ACTIVITY_TRANSITION_ENTER -> "Started"
+                ActivityTransition.ACTIVITY_TRANSITION_EXIT -> "Stopped"
+                else -> "Unknown"
+            }
+
+            DebugLog.log(context, "Detection", "$transitionName $activityName")
 
             val isVehicle = activityType == DetectedActivity.IN_VEHICLE
                     || activityType == DetectedActivity.ON_BICYCLE
 
             if (isVehicle && transitionType == ActivityTransition.ACTIVITY_TRANSITION_ENTER) {
-                Log.d(TAG, "Entered vehicle — starting trip tracking")
+                DebugLog.log(context, "Tracking", "Starting trip recording")
                 startTrackingService(context)
             } else if (isVehicle && transitionType == ActivityTransition.ACTIVITY_TRANSITION_EXIT) {
-                Log.d(TAG, "Exited vehicle — stopping trip tracking")
+                DebugLog.log(context, "Tracking", "Stopping trip recording")
                 stopTrackingService(context)
             }
         }

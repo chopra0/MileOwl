@@ -14,6 +14,7 @@ import androidx.core.app.NotificationCompat
 import com.mileowl.tracker.MainActivity
 import com.mileowl.tracker.R
 import com.mileowl.tracker.util.Constants
+import com.mileowl.tracker.util.DebugLog
 
 /**
  * Always-on foreground service that keeps MileOwl alive so it can
@@ -53,12 +54,12 @@ class DriveMonitorService : Service() {
         isRunning = true
         startForeground(Constants.MONITOR_NOTIFICATION_ID, buildNotification())
 
-        // Register for drive detection via Google Play Services
+        // Register for drive detection
         try {
             ActivityTransitionHelper.registerTransitions(this)
-            Log.d(TAG, "Drive monitor started — listening for drives")
+            DebugLog.log(this, "Watcher", "Started — listening for drives")
         } catch (e: Exception) {
-            Log.w(TAG, "Could not register activity transitions", e)
+            DebugLog.log(this, "Watcher", "⚠️ Could not register: ${e.message}")
         }
 
         return START_STICKY

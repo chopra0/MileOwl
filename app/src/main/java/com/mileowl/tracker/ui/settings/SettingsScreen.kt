@@ -431,6 +431,68 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(20.dp))
 
         // About section
+        // Debug Log Section
+        SectionHeader("Debug Log")
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                val debugContext = androidx.compose.ui.platform.LocalContext.current
+                var showLog by remember { mutableStateOf(false) }
+                var logText by remember { mutableStateOf("") }
+
+                OutlinedButton(
+                    onClick = {
+                        logText = com.mileowl.tracker.util.DebugLog.readLog(debugContext)
+                        showLog = true
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("View Debug Log")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = {
+                        com.mileowl.tracker.util.DebugLog.clearLog(debugContext)
+                        logText = ""
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Clear Log")
+                }
+
+                if (showLog && logText.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            // Copy button
+                            val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+                            TextButton(
+                                onClick = {
+                                    clipboardManager.setText(
+                                        androidx.compose.ui.text.AnnotatedString(logText)
+                                    )
+                                }
+                            ) {
+                                Text("Copy to clipboard")
+                            }
+                            Text(
+                                text = logText,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
         // Feedback & Support Section
         SectionHeader("Feedback & Support")
         Card(modifier = Modifier.fillMaxWidth()) {
