@@ -95,7 +95,7 @@ fun HomeScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.refresh()
+        // No manual refresh needed, uiState is reactive
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
