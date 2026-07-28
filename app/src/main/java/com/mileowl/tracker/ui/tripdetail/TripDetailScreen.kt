@@ -92,6 +92,8 @@ import com.mileowl.tracker.data.model.Vehicle
 import com.mileowl.tracker.ui.theme.BusinessGreen
 import com.mileowl.tracker.ui.theme.PersonalBlue
 import com.mileowl.tracker.ui.theme.UnclassifiedGray
+import com.mileowl.tracker.ui.common.AddVehicleDialog
+import androidx.compose.ui.viewinterop.AndroidView
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -233,14 +235,14 @@ fun TripDetailScreen(
                             fontWeight = FontWeight.SemiBold
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        RouteMapCanvas(
+                        RouteMapView(
                             locationPoints = state.locationPoints,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(200.dp)
+                                .height(250.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
                         )
+                    }
                     }
                 }
             }
@@ -477,11 +479,24 @@ fun TripDetailScreen(
                 fontWeight = FontWeight.SemiBold
             )
 
+            var showAddVehicleDialog by remember { mutableStateOf(false) }
+
             VehicleDropdown(
                 vehicles = state.vehicles,
                 selectedVehicleId = trip.vehicleId,
-                onVehicleSelected = { viewModel.updateVehicleId(it) }
+                onVehicleSelected = { viewModel.updateVehicleId(it) },
+                onAddVehicle = { showAddVehicleDialog = true }
             )
+
+            if (showAddVehicleDialog) {
+                AddVehicleDialog(
+                    onDismiss = { showAddVehicleDialog = false },
+                    onSave = { name, year, make, model ->
+                        viewModel.addVehicle(name, year, make, model)
+                        showAddVehicleDialog = false
+                    }
+                )
+            }
 
             // Save as Frequent Drive
             OutlinedButton(
@@ -597,7 +612,8 @@ fun TripDetailScreen(
 private fun VehicleDropdown(
     vehicles: List<Vehicle>,
     selectedVehicleId: Long?,
-    onVehicleSelected: (Long?) -> Unit
+    onVehicleSelected: (Long?) -> Unit,
+    onAddVehicle: () -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedVehicle = vehicles.firstOrNull { it.id == selectedVehicleId }
@@ -660,6 +676,23 @@ private fun VehicleDropdown(
                     }
                 )
             }
+            // Divider before Add New Vehicle
+            if (vehicles.isNotEmpty()) {
+                HorizontalDivider()
+            }
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = "+ Add New Vehicle",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
+                    )
+                },
+                onClick = {
+                    expanded = false
+                    onAddVehicle()
+                }
+            )
         }
     }
 }
@@ -698,6 +731,67 @@ private fun DetailStat(
             )
         }
     }
+}
+
+@Composable
+fun RouteMapView(
+    locationPoints: List<LocationPoint>,
+    modifier: Modifier = Modifier
+) {
+    if (locationPoints.size < 2) {
+        Box(modifier = modifier, contentAlignment = Alignment.Center) {
+            Text("No route data available",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        return
+    }
+
+    val coordsJson = locationPoints.joinToString(",") { "[${it.latitude},${it.longitude}]" }
+    val startLat = locationPoints.first().latitude
+    val startLon = locationPoints.first().longitude
+    val endLat = locationPoints.last().latitude
+    val endLon = locationPoints.last().longitude
+
+    val html = """
+    <!DOCTYPE html>
+    <html><head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+      html,body,#map{margin:0;padding:0;width:100%;height:100%}
+      .leaflet-control-attribution{font-size:8px!important}
+    </style>
+    </head><body>
+    <div id="map"></div>
+    <script>
+      var coords = [$coordsJson];
+      var map = L.map('map',{zoomControl:false});
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+        attribution:'© OSM',maxZoom:18
+      }).addTo(map);
+      var route = L.polyline(coords,{color:'#4285F4',weight:4,opacity:0.9}).addTo(map);
+      map.fitBounds(route.getBounds().pad(0.15));
+      L.circleMarker([$startLat,$startLon],{radius:6,color:'#34A853',fillColor:'#34A853',fillOpacity:1,weight:2}).addTo(map);
+      L.circleMarker([$endLat,$endLon],{radius:6,color:'#EA4335',fillColor:'#EA4335',fillOpacity:1,weight:2}).addTo(map);
+    </script>
+    </body></html>
+    """.trimIndent()
+
+    AndroidView(
+        factory = { context ->
+            android.webkit.WebView(context).apply {
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.loadWithOverviewMode = true
+                settings.useWideViewPort = true
+                setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
+            }
+        },
+        modifier = modifier
+    )
 }
 
 @Composable

@@ -118,6 +118,17 @@ class TripDetailViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    fun addVehicle(name: String, year: String, make: String, model: String) {
+        viewModelScope.launch {
+            val vehicle = Vehicle(name = name, year = year, make = make, model = model)
+            val id = repo.insertVehicle(vehicle)
+            // Auto-assign the new vehicle to this trip
+            _uiState.value.trip?.let { trip ->
+                repo.updateTrip(trip.copy(vehicleId = id))
+            }
+        }
+    }
+
     fun saveAsFrequentDrive() {
         viewModelScope.launch {
             _uiState.value.trip?.let { trip ->

@@ -597,9 +597,9 @@ fun SettingsScreen(
 
     // Add Vehicle Dialog
     if (showAddVehicleDialog) {
-        AddVehicleDialog(
+        com.mileowl.tracker.ui.common.AddVehicleDialog(
             onDismiss = { showAddVehicleDialog = false },
-            onAdd = { name, year, make, model ->
+            onSave = { name, year, make, model ->
                 viewModel.addVehicle(name, year, make, model)
                 showAddVehicleDialog = false
             }
@@ -696,72 +696,6 @@ private fun VehicleItem(
             )
         }
     }
-}
-
-@Composable
-private fun AddVehicleDialog(
-    onDismiss: () -> Unit,
-    onAdd: (name: String, year: String, make: String, model: String) -> Unit
-) {
-    var name by remember { mutableStateOf("") }
-    var year by remember { mutableStateOf("") }
-    var make by remember { mutableStateOf("") }
-    var model by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add Vehicle") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Vehicle Name") },
-                    placeholder = { Text("e.g., PSA Telluride") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = year,
-                        onValueChange = { year = it },
-                        label = { Text("Year") },
-                        placeholder = { Text("2027") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = make,
-                        onValueChange = { make = it },
-                        label = { Text("Make") },
-                        placeholder = { Text("Kia") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                OutlinedTextField(
-                    value = model,
-                    onValueChange = { model = it },
-                    label = { Text("Model") },
-                    placeholder = { Text("Telluride Hybrid SX Prestige X-Line") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onAdd(name, year, make, model) },
-                enabled = name.isNotBlank()
-            ) {
-                Text("Add")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
-    )
 }
 
 @Composable
