@@ -1,15 +1,19 @@
 package com.mileowl.tracker.ui.settings
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mileowl.tracker.MileOwlApp
 import com.mileowl.tracker.data.model.TripClassification
 import com.mileowl.tracker.data.model.Vehicle
 import com.mileowl.tracker.service.ActivityTransitionHelper
+import com.mileowl.tracker.util.CsvImporter
+import com.mileowl.tracker.util.ImportResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -26,11 +30,19 @@ data class SettingsUiState(
     val workDays: String = "Mon,Tue,Wed,Thu,Fri"
 )
 
+data class ImportState(
+    val isImporting: Boolean = false,
+    val result: ImportResult? = null
+)
+
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val app = application as MileOwlApp
     private val repo = app.container.tripRepository
     private val prefs = app.container.preferencesManager
+
+    private val _importState = MutableStateFlow(ImportState())
+    val importState: StateFlow<ImportState> = _importState.asStateFlow()
 
     val uiState: StateFlow<SettingsUiState> = combine(
         combine(
@@ -130,5 +142,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setWorkDays(days: String) {
         viewModelScope.launch { prefs.setWorkDays(days) }
+    }
+
+    fun importCsv(uri: Uri) {
+        viewModelScope.launch {
+            _importState.value = ImportState(isImporting = true)
+            val importer = CsvImporter(app, repo)
+            val result = importer.importFromUri(uri)
+            _importState.value = ImportState(isImporting = false, result = result)
+        }
+    }
+
+    fun clearImportResult() {
+        _importState.value = ImportState()
     }
 }

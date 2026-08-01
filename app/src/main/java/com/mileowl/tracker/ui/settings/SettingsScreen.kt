@@ -3,6 +3,8 @@ package com.mileowl.tracker.ui.settings
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,6 +28,7 @@ import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -62,8 +65,16 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val importState by viewModel.importState.collectAsStateWithLifecycle()
     var showAddVehicleDialog by remember { mutableStateOf(false) }
     var vehicleToDelete by remember { mutableStateOf<Vehicle?>(null) }
+
+    // File picker for CSV import
+    val csvPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.importCsv(it) }
+    }
 
     Column(
         modifier = Modifier
@@ -104,6 +115,58 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Import Data Section
+        SectionHeader("Import Data")
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Import trip history from MileIQ, QuickBooks, or any CSV file with Date and Miles columns.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (importState.isImporting) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Importing trips…",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = {
+                            csvPicker.launch(arrayOf(
+                                "text/csv",
+                                "text/comma-separated-values",
+                                "application/csv",
+                                "application/vnd.ms-excel",
+                                "*/*"
+                            ))
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            Icons.Filled.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Import from CSV")
+                    }
+                }
             }
         }
 
@@ -623,6 +686,65 @@ fun SettingsScreen(
             dismissButton = {
                 TextButton(onClick = { vehicleToDelete = null }) {
                     Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Import Result Dialog
+    importState.result?.let { result ->
+        AlertDialog(
+            onDismissRequest = { viewModel.clearImportResult() },
+            title = {
+                Text(
+                    if (result.imported > 0) "Import Complete"
+                    else "Import Failed"
+                )
+            },
+            text = {
+                Column {
+                    if (result.imported > 0) {
+                        Text(
+                            text = "✅ ${result.imported} trip${if (result.imported != 1) "s" else ""} imported",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    if (result.skipped > 0) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "${result.skipped} row${if (result.skipped != 1) "s" else ""} skipped",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (result.errors.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Issues:",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        result.errors.take(5).forEach { error ->
+                            Text(
+                                text = "• $error",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        if (result.errors.size > 5) {
+                            Text(
+                                text = "…and ${result.errors.size - 5} more",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.clearImportResult() }) {
+                    Text("OK")
                 }
             }
         )
