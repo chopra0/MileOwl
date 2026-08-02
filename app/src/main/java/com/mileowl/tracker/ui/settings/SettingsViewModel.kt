@@ -114,8 +114,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             prefs.setAutoDetectionEnabled(enabled)
             if (enabled) {
                 ActivityTransitionHelper.registerTransitions(app)
+                DriveMonitorService.start(app)
             } else {
                 ActivityTransitionHelper.unregisterTransitions(app)
+                DriveMonitorService.stop(app)
             }
         }
     }

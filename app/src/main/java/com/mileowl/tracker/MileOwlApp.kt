@@ -39,11 +39,18 @@ class MileOwlApp : Application() {
     }
 
     /**
-     * Register for activity transitions every time the app process starts.
+     * Register for activity transitions every time the app process starts,
+     * but only if auto-detection is enabled in preferences.
      * This ensures the driving detector stays alive even if Android killed
      * and restarted the process in the background.
      */
     private fun registerTransitionsIfReady() {
+        // Check if auto-detection is enabled
+        if (!container.preferencesManager.isAutoDetectionEnabledSync()) {
+            Log.d("MileOwlApp", "Auto-detection disabled — skipping registration")
+            return
+        }
+
         val hasFineLocation = ContextCompat.checkSelfPermission(
             this, Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED

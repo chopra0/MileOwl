@@ -16,6 +16,26 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 
 class PreferencesManager(private val context: Context) {
 
+    /**
+     * Synchronous read of auto-detection preference for use in Application.onCreate()
+     * and BootReceiver where coroutines aren't available. Reads from the same
+     * DataStore backing file via SharedPreferences.
+     */
+    fun isAutoDetectionEnabledSync(): Boolean {
+        // DataStore prefs are stored in "mileowl_prefs.preferences_pb" but we
+        // can't easily read protobuf synchronously. Use a parallel SharedPreferences
+        // mirror that we keep in sync.
+        val sharedPrefs = context.getSharedPreferences("mileowl_sync_prefs", Context.MODE_PRIVATE)
+        return sharedPrefs.getBoolean("auto_detection_enabled", true)
+    }
+
+    private fun mirrorAutoDetection(enabled: Boolean) {
+        context.getSharedPreferences("mileowl_sync_prefs", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("auto_detection_enabled", enabled)
+            .apply()
+    }
+
     private object Keys {
         val IRS_RATE = doublePreferencesKey("irs_rate")
         val VEHICLE_NAME = stringPreferencesKey("vehicle_name")
@@ -87,6 +107,7 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun setAutoDetectionEnabled(enabled: Boolean) {
         context.dataStore.edit { it[Keys.AUTO_DETECTION_ENABLED] = enabled }
+        mirrorAutoDetection(enabled)
     }
 
     suspend fun setHighAccuracy(enabled: Boolean) {
