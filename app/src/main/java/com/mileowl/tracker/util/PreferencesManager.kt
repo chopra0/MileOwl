@@ -10,7 +10,9 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.mileowl.tracker.data.model.TripClassification
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "mileowl_prefs")
 
@@ -18,22 +20,14 @@ class PreferencesManager(private val context: Context) {
 
     /**
      * Synchronous read of auto-detection preference for use in Application.onCreate()
-     * and BootReceiver where coroutines aren't available. Reads from the same
-     * DataStore backing file via SharedPreferences.
+     * and BootReceiver where coroutines aren't available. Reads directly from
+     * DataStore using runBlocking — safe here because it's a single fast read
+     * that only happens at app startup or boot.
      */
     fun isAutoDetectionEnabledSync(): Boolean {
-        // DataStore prefs are stored in "mileowl_prefs.preferences_pb" but we
-        // can't easily read protobuf synchronously. Use a parallel SharedPreferences
-        // mirror that we keep in sync.
-        val sharedPrefs = context.getSharedPreferences("mileowl_sync_prefs", Context.MODE_PRIVATE)
-        return sharedPrefs.getBoolean("auto_detection_enabled", true)
-    }
-
-    private fun mirrorAutoDetection(enabled: Boolean) {
-        context.getSharedPreferences("mileowl_sync_prefs", Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean("auto_detection_enabled", enabled)
-            .apply()
+        return runBlocking {
+            autoDetectionEnabledFlow.first()
+        }
     }
 
     private object Keys {
@@ -107,7 +101,6 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun setAutoDetectionEnabled(enabled: Boolean) {
         context.dataStore.edit { it[Keys.AUTO_DETECTION_ENABLED] = enabled }
-        mirrorAutoDetection(enabled)
     }
 
     suspend fun setHighAccuracy(enabled: Boolean) {
