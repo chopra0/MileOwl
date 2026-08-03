@@ -243,7 +243,6 @@ fun TripDetailScreen(
                                 .clip(RoundedCornerShape(8.dp))
                         )
                     }
-                    }
                 }
             }
 
