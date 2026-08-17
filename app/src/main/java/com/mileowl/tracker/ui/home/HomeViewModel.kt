@@ -6,12 +6,14 @@ import androidx.lifecycle.viewModelScope
 import com.mileowl.tracker.MileOwlApp
 import com.mileowl.tracker.data.model.Trip
 import com.mileowl.tracker.data.model.TripClassification
+import com.mileowl.tracker.data.model.TripPurpose
 import com.mileowl.tracker.service.TripTrackingService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.util.Calendar
 
 data class HomeUiState(
@@ -23,7 +25,8 @@ data class HomeUiState(
     val ytdBusinessMiles: Double = 0.0,
     val ytdDeduction: Double = 0.0,
     val irsRate: Double = 0.70,
-    val recentTrips: List<Trip> = emptyList()
+    val recentTrips: List<Trip> = emptyList(),
+    val unclassifiedTrips: List<Trip> = emptyList()
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -52,9 +55,26 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             ytdBusinessMiles = ytdBusiness.sumOf { it.distanceMiles },
             ytdDeduction = ytdBusiness.sumOf { it.distanceMiles } * irsRate,
             irsRate = irsRate,
-            recentTrips = monthTrips.take(5)
+            recentTrips = monthTrips.take(5),
+            unclassifiedTrips = monthTrips.filter { it.classification == TripClassification.UNCLASSIFIED }
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
+
+    fun classifyTrip(trip: Trip, classification: TripClassification) {
+        viewModelScope.launch {
+            val defaultPurpose = when (classification) {
+                TripClassification.BUSINESS -> TripPurpose.BUSINESS
+                TripClassification.PERSONAL -> TripPurpose.PERSONAL
+                TripClassification.UNCLASSIFIED -> null
+            }
+            repo.updateTrip(
+                trip.copy(
+                    classification = classification,
+                    tripPurpose = trip.tripPurpose ?: defaultPurpose
+                )
+            )
+        }
+    }
 
     private fun startOfMonth(): Long {
         val cal = Calendar.getInstance()

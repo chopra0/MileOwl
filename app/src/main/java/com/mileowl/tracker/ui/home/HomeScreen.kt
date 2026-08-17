@@ -3,6 +3,7 @@ package com.mileowl.tracker.ui.home
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,13 +27,19 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Work
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -229,6 +236,43 @@ fun HomeScreen(
                     deduction = state.ytdDeduction,
                     irsRate = state.irsRate
                 )
+            }
+
+            // ─── Swipe to Classify ─────────────────────────────────
+            if (state.unclassifiedTrips.isNotEmpty()) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Classify Trips",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "${state.unclassifiedTrips.size} unclassified · swipe → business · swipe ← personal",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                items(
+                    items = state.unclassifiedTrips,
+                    key = { "classify_${it.id}" }
+                ) { trip ->
+                    SwipeToClassifyCard(
+                        trip = trip,
+                        onClassify = { classification ->
+                            viewModel.classifyTrip(trip, classification)
+                        },
+                        onClick = { onNavigateToTripDetail(trip.id) }
+                    )
+                }
             }
 
             // Frequent Drives Card
@@ -617,6 +661,163 @@ private fun RecentTripItem(trip: Trip, onClick: () -> Unit) {
             }
         }
     }
+}
+
+// ─── Swipe to Classify Card ─────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeToClassifyCard(
+    trip: Trip,
+    onClassify: (TripClassification) -> Unit,
+    onClick: () -> Unit
+) {
+    val dateFormat = SimpleDateFormat("MMM d, h:mm a", Locale.US)
+
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { dismissValue ->
+            when (dismissValue) {
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    onClassify(TripClassification.BUSINESS)
+                    false // Reset position, don't dismiss
+                }
+                SwipeToDismissBoxValue.EndToStart -> {
+                    onClassify(TripClassification.PERSONAL)
+                    false
+                }
+                else -> false
+            }
+        }
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            val direction = dismissState.dismissDirection
+            val color by animateColorAsState(
+                when (direction) {
+                    SwipeToDismissBoxValue.StartToEnd -> BusinessGreen.copy(alpha = 0.3f)
+                    SwipeToDismissBoxValue.EndToStart -> PersonalBlue.copy(alpha = 0.3f)
+                    else -> Color.Transparent
+                },
+                label = "classifySwipeColor"
+            )
+            val alignment = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                else -> Alignment.CenterEnd
+            }
+            val icon = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> Icons.Filled.Work
+                else -> Icons.Filled.Home
+            }
+            val label = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> "Business"
+                SwipeToDismissBoxValue.EndToStart -> "Personal"
+                else -> ""
+            }
+            val labelColor = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> BusinessGreen
+                SwipeToDismissBoxValue.EndToStart -> PersonalBlue
+                else -> Color.Transparent
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(color)
+                    .padding(horizontal = 20.dp),
+                contentAlignment = alignment
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (direction == SwipeToDismissBoxValue.StartToEnd) {
+                        Icon(
+                            icon,
+                            contentDescription = null,
+                            tint = labelColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                    Text(
+                        text = label,
+                        fontWeight = FontWeight.Bold,
+                        color = labelColor
+                    )
+                    if (direction == SwipeToDismissBoxValue.EndToStart) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            icon,
+                            contentDescription = null,
+                            tint = labelColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        },
+        content = {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onClick),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Unclassified badge
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(UnclassifiedGray.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "?",
+                            color = UnclassifiedGray,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "${trip.startAddress ?: "Unknown"} → ${trip.endAddress ?: "Unknown"}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = dateFormat.format(Date(trip.startTime)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = String.format("%.1f mi", trip.distanceMiles),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "${trip.durationMinutes} min",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    )
 }
 
 private fun startManualTrip(context: Context) {

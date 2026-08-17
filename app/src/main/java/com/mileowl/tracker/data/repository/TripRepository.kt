@@ -53,6 +53,11 @@ class TripRepository(
         tripDao.deleteTrip(trip)
     }
 
+    suspend fun deleteTrip(tripId: Long) {
+        tripDao.deleteLocationPointsForTrip(tripId)
+        tripDao.deleteTripById(tripId)
+    }
+
     suspend fun getLocationPointsForTrip(tripId: Long): List<LocationPoint> =
         tripDao.getLocationPointsForTrip(tripId)
 

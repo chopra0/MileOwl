@@ -61,6 +61,9 @@ interface TripDao {
     @Delete
     suspend fun deleteTrip(trip: Trip)
 
+    @Query("DELETE FROM trips WHERE id = :tripId")
+    suspend fun deleteTripById(tripId: Long)
+
     @Query("SELECT * FROM location_points WHERE tripId = :tripId ORDER BY timestamp ASC")
     suspend fun getLocationPointsForTrip(tripId: Long): List<LocationPoint>
 

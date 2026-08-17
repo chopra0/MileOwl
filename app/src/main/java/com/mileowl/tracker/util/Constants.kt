@@ -23,6 +23,9 @@ object Constants {
     const val UNCLASSIFIED_REMINDER_NOTIFICATION_ID = 2004
     const val UNCLASSIFIED_REMINDER_THRESHOLD = 3
 
+    // Minimum trip distance — anything shorter is a false auto-detect signal
+    const val MIN_TRIP_DISTANCE_MILES = 0.1
+
     // Drive monitor (always-on service)
     const val MONITOR_CHANNEL_ID = "mileowl_monitor"
     const val MONITOR_CHANNEL_NAME = "Drive Monitoring"

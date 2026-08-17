@@ -188,6 +188,16 @@ class TripTrackingService : Service() {
 
                     val trip = repo.getTripByIdOnce(currentTripId)
                     if (trip != null) {
+                        // ── Discard junk trips (false auto-detect signals) ──
+                        if (distanceMiles < Constants.MIN_TRIP_DISTANCE_MILES) {
+                            repo.deleteTrip(currentTripId)
+                            DebugLog.log(applicationContext, "Save", "🗑️ Discarded ${String.format("%.2f", distanceMiles)} mi trip (below ${Constants.MIN_TRIP_DISTANCE_MILES} mi minimum)")
+                            Log.d(TAG, "Trip $currentTripId discarded: $distanceMiles mi < ${Constants.MIN_TRIP_DISTANCE_MILES} mi minimum")
+                            stopForeground(STOP_FOREGROUND_REMOVE)
+                            stopSelf()
+                            return@launch
+                        }
+
                         // ── Auto-classification logic ──
                         val defaultClassification = prefs.defaultClassificationFlow.first()
                         var autoClassification = defaultClassification
