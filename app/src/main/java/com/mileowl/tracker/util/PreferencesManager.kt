@@ -44,6 +44,7 @@ class PreferencesManager(private val context: Context) {
         val WORK_START_HOUR = stringPreferencesKey("work_start_hour")
         val WORK_END_HOUR = stringPreferencesKey("work_end_hour")
         val WORK_DAYS = stringPreferencesKey("work_days")
+        val SKIP_VEHICLE_PROMPT = booleanPreferencesKey("skip_vehicle_prompt")
     }
 
     val irsRateFlow: Flow<Double> = context.dataStore.data.map { prefs ->
@@ -150,5 +151,14 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun setWorkDays(days: String) {
         context.dataStore.edit { it[Keys.WORK_DAYS] = days }
+    }
+
+    // Vehicle selection prompt preference
+    val skipVehiclePromptFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[Keys.SKIP_VEHICLE_PROMPT] ?: false
+    }
+
+    suspend fun setSkipVehiclePrompt(skip: Boolean) {
+        context.dataStore.edit { it[Keys.SKIP_VEHICLE_PROMPT] = skip }
     }
 }

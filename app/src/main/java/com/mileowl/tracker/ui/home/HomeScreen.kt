@@ -67,6 +67,7 @@ import com.mileowl.tracker.ui.theme.BusinessGreen
 import com.mileowl.tracker.ui.theme.PersonalBlue
 import com.mileowl.tracker.ui.theme.TrackingGreen
 import com.mileowl.tracker.ui.theme.UnclassifiedGray
+import com.mileowl.tracker.ui.common.VehicleSelectionDialog
 import com.mileowl.tracker.util.Constants
 import com.mileowl.tracker.util.TrackingAlertHelper
 import java.text.SimpleDateFormat
@@ -99,6 +100,17 @@ fun HomeScreen(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Vehicle selection dialog — shown after swipe-to-classify when 2+ vehicles
+    if (state.pendingClassification != null && state.vehicles.size >= 2) {
+        VehicleSelectionDialog(
+            vehicles = state.vehicles,
+            onSelect = { vehicleId, alwaysUseThis ->
+                viewModel.completePendingClassification(vehicleId, alwaysUseThis)
+            },
+            onDismiss = { viewModel.dismissVehiclePrompt() }
+        )
     }
 
     Box(modifier = Modifier.fillMaxSize()) {

@@ -28,7 +28,9 @@ data class SettingsUiState(
     val workHoursEnabled: Boolean = false,
     val workStartHour: String = "08:00",
     val workEndHour: String = "18:00",
-    val workDays: String = "Mon,Tue,Wed,Thu,Fri"
+    val workDays: String = "Mon,Tue,Wed,Thu,Fri",
+    val skipVehiclePrompt: Boolean = false,
+    val defaultVehicleName: String? = null
 )
 
 data class ImportState(
@@ -68,14 +70,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             prefs.workDaysFlow
         ) { enabled, start, end, days ->
             Triple(enabled, start, "$end|$days")
-        }
-    ) { base, workHours ->
+        },
+        prefs.skipVehiclePromptFlow
+    ) { base, workHours, skipPrompt ->
         val parts = workHours.third.split("|")
+        val defaultVehicle = base.vehicles.firstOrNull { it.isDefault }
         base.copy(
             workHoursEnabled = workHours.first,
             workStartHour = workHours.second,
             workEndHour = parts[0],
-            workDays = parts[1]
+            workDays = parts[1],
+            skipVehiclePrompt = skipPrompt,
+            defaultVehicleName = if (skipPrompt) defaultVehicle?.name else null
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
 
@@ -107,6 +113,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             repo.clearDefaultVehicle()
             repo.setDefaultVehicle(vehicleId)
+        }
+    }
+
+    fun resetVehiclePrompt() {
+        viewModelScope.launch {
+            prefs.setSkipVehiclePrompt(false)
         }
     }
 

@@ -55,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mileowl.tracker.data.model.Trip
 import com.mileowl.tracker.data.model.TripClassification
+import com.mileowl.tracker.ui.common.VehicleSelectionDialog
 import com.mileowl.tracker.ui.theme.BusinessGreen
 import com.mileowl.tracker.ui.theme.PersonalBlue
 import com.mileowl.tracker.ui.theme.UnclassifiedGray
@@ -72,7 +73,20 @@ fun TripsScreen(
     val filter by viewModel.filter.collectAsStateWithLifecycle()
     val isSelectionMode by viewModel.isSelectionMode.collectAsStateWithLifecycle()
     val selectedTrips by viewModel.selectedTrips.collectAsStateWithLifecycle()
+    val vehicles by viewModel.vehicles.collectAsStateWithLifecycle()
+    val pendingClassification by viewModel.pendingClassification.collectAsStateWithLifecycle()
     var showDeleteDialog by remember { mutableStateOf(false) }
+
+    // Vehicle selection dialog — shown after classify when 2+ vehicles
+    if (pendingClassification != null && vehicles.size >= 2) {
+        VehicleSelectionDialog(
+            vehicles = vehicles,
+            onSelect = { vehicleId, alwaysUseThis ->
+                viewModel.completePendingClassification(vehicleId, alwaysUseThis)
+            },
+            onDismiss = { viewModel.dismissVehiclePrompt() }
+        )
+    }
 
     // Delete confirmation dialog
     if (showDeleteDialog) {

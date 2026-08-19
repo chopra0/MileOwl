@@ -228,6 +228,43 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
+        // Vehicle Prompt Settings Section
+        if (state.vehicles.size >= 2) {
+            SectionHeader("Vehicle Selection")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Default vehicle for trips",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = if (state.skipVehiclePrompt && state.defaultVehicleName != null) {
+                                    "Using \"${state.defaultVehicleName}\" for all trips"
+                                } else {
+                                    "Ask which vehicle on every trip"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (state.skipVehiclePrompt) {
+                            TextButton(onClick = { viewModel.resetVehiclePrompt() }) {
+                                Text("Reset")
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+        }
+
         // Tracking Settings
         SectionHeader("Tracking")
         Card(modifier = Modifier.fillMaxWidth()) {
