@@ -77,6 +77,11 @@ class TripsViewModel(application: Application) : AndroidViewModel(application) {
         if (selectedTrips.value.isNotEmpty()) isSelectionMode.value = true
     }
 
+    fun selectAll() {
+        selectedTrips.value = trips.value.map { it.id }.toSet()
+        if (selectedTrips.value.isNotEmpty()) isSelectionMode.value = true
+    }
+
     fun clearSelection() {
         selectedTrips.value = emptySet()
         isSelectionMode.value = false
@@ -88,6 +93,14 @@ class TripsViewModel(application: Application) : AndroidViewModel(application) {
             trips.value.filter { it.id in selected }.forEach { trip ->
                 classifyTrip(trip, classification)
             }
+            clearSelection()
+        }
+    }
+
+    fun deleteSelected() {
+        viewModelScope.launch {
+            val selected = selectedTrips.value.toList()
+            repo.deleteTrips(selected)
             clearSelection()
         }
     }
