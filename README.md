@@ -10,16 +10,21 @@ No subscriptions. No ads. All data stays on your device.
 - Uses Android Activity Recognition API to detect when you're driving
 - Background GPS tracking via foreground service with live distance notification
 - Re-registers activity transitions after device reboot
+- Auto-discards ghost trips under 0.1 miles (false detection filter)
 
 ### Trip Management
-- **Swipe to classify**: Swipe right for Business, left for Personal
+- **Swipe to classify**: Swipe right for Business, left for Personal — on both the Home dashboard and Trips list
+- **Multi-select delete**: Long-press to select, bulk-delete ghost or unwanted trips
 - **Purpose categories**: Business, Customer Visit, Meeting, Delivery, Errand/Supplies, and more
 - Auto-maps purpose to IRS classification
 - Add notes and client/destination names for each trip
 - Track parking costs and tolls per trip
+- **CSV import**: Migrate trip history from MileIQ or QuickBooks
 
 ### Multi-Vehicle Support
 - Manage multiple vehicles (e.g., business Telluride vs personal Mazda)
+- **Vehicle selection popup** on classify when 2+ vehicles are saved
+- "Always use this vehicle" option to skip the popup (resettable in Settings)
 - Set a default vehicle for new trips
 - Filter trips and reports by vehicle
 
@@ -32,6 +37,7 @@ No subscriptions. No ads. All data stays on your device.
 - Monthly business/personal miles and trip counts
 - Year-to-date business miles and IRS deduction total
 - Real-time tracking status indicator
+- Unclassified trips queue with swipe-to-classify cards
 - Quick-access recent trips
 
 ### IRS-Compliant Export
@@ -118,25 +124,32 @@ app/src/main/java/com/mileowl/tracker/
 │   └── repository/         # TripRepository
 ├── service/
 │   ├── TripTrackingService.kt      # Foreground GPS service
+│   ├── DriveMonitorService.kt      # Always-on drive detection listener
 │   ├── ActivityTransitionHelper.kt  # Activity Recognition setup
 │   ├── ActivityTransitionReceiver.kt # Broadcast receiver
-│   └── BootReceiver.kt             # Re-register on boot
+│   ├── BootReceiver.kt             # Re-register on boot
+│   └── PowerSaveReceiver.kt        # Battery optimization alerts
 ├── ui/
 │   ├── theme/              # Material 3 colors, typography
 │   ├── navigation/         # NavGraph + bottom navigation
-│   ├── home/               # Dashboard
-│   ├── trips/              # Trip list with swipe classify
+│   ├── common/             # Shared dialogs (VehicleSelection, AddVehicle)
+│   ├── home/               # Dashboard + swipe-to-classify queue
+│   ├── trips/              # Trip list with swipe classify + multi-select delete
 │   ├── tripdetail/         # Trip detail with purpose picker
 │   ├── locations/          # Saved locations management
 │   ├── frequentdrives/     # Frequent drive templates
 │   ├── report/             # IRS report generation
+│   ├── permission/         # Permission onboarding flow
 │   └── settings/           # App settings + vehicle management
 └── util/
+    ├── Constants.kt
     ├── CsvExporter.kt      # IRS-compliant CSV generation
+    ├── CsvImporter.kt      # MileIQ/QuickBooks import
+    ├── DebugLog.kt         # On-device debug logging
     ├── DistanceCalculator.kt
     ├── GeocoderHelper.kt
     ├── PreferencesManager.kt
-    └── Constants.kt
+    └── TrackingAlertHelper.kt
 ```
 
 ## License
