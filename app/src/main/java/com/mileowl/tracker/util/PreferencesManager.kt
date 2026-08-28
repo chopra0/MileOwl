@@ -10,25 +10,11 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.mileowl.tracker.data.model.TripClassification
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "mileowl_prefs")
 
 class PreferencesManager(private val context: Context) {
-
-    /**
-     * Synchronous read of auto-detection preference for use in Application.onCreate()
-     * and BootReceiver where coroutines aren't available. Reads directly from
-     * DataStore using runBlocking — safe here because it's a single fast read
-     * that only happens at app startup or boot.
-     */
-    fun isAutoDetectionEnabledSync(): Boolean {
-        return runBlocking {
-            autoDetectionEnabledFlow.first()
-        }
-    }
 
     private object Keys {
         val IRS_RATE = doublePreferencesKey("irs_rate")
@@ -77,7 +63,11 @@ class PreferencesManager(private val context: Context) {
 
     val defaultClassificationFlow: Flow<TripClassification> = context.dataStore.data.map { prefs ->
         val name = prefs[Keys.DEFAULT_CLASSIFICATION] ?: TripClassification.UNCLASSIFIED.name
-        TripClassification.valueOf(name)
+        try {
+            TripClassification.valueOf(name)
+        } catch (_: Exception) {
+            TripClassification.UNCLASSIFIED
+        }
     }
 
     suspend fun setIrsRate(rate: Double) {

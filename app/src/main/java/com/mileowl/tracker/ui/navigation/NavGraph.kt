@@ -1,5 +1,6 @@
 package com.mileowl.tracker.ui.navigation
 
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsCar
@@ -81,12 +82,23 @@ fun MileOwlNavGraph() {
 
     val app = context.applicationContext as MileOwlApp
     val prefs = app.container.preferencesManager
-    val onboardingComplete by prefs.onboardingCompleteFlow.collectAsState(initial = true)
+    val onboardingComplete by prefs.onboardingCompleteFlow.collectAsState(initial = null)
+
+    // Show loading while determining destination
+    if (onboardingComplete == null) {
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = androidx.compose.ui.Alignment.Center
+        ) {
+            androidx.compose.material3.CircularProgressIndicator()
+        }
+        return
+    }
 
     val showBottomBar = currentDestination?.route in bottomNavItems.map { it.route }
 
     // Determine start destination based on onboarding state
-    val startDestination = if (onboardingComplete) NavRoutes.HOME else NavRoutes.PERMISSION
+    val startDestination = if (onboardingComplete == true) NavRoutes.HOME else NavRoutes.PERMISSION
 
     Scaffold(
         bottomBar = {

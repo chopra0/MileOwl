@@ -5,6 +5,10 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.mileowl.tracker.util.PreferencesManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class BootReceiver : BroadcastReceiver() {
 
@@ -14,23 +18,27 @@ class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            // Only start detection if auto-detection is enabled
-            val prefs = PreferencesManager(context)
-            if (!prefs.isAutoDetectionEnabledSync()) {
-                Log.d(TAG, "Device booted — auto-detection disabled, skipping")
-                return
-            }
+            val scope = CoroutineScope(Dispatchers.IO)
+            scope.launch {
+                val prefs = PreferencesManager(context)
+                val enabled = prefs.autoDetectionEnabledFlow.first()
+                
+                if (!enabled) {
+                    Log.d(TAG, "Device booted — auto-detection disabled, skipping")
+                    return@launch
+                }
 
-            Log.d(TAG, "Device booted — starting drive monitor service")
-            try {
-                DriveMonitorService.start(context)
-            } catch (e: Exception) {
-                // Fallback: register transitions directly
-                Log.w(TAG, "Could not start monitor service, registering transitions directly", e)
+                Log.d(TAG, "Device booted — starting drive monitor service")
                 try {
-                    ActivityTransitionHelper.registerTransitions(context)
-                } catch (e2: Exception) {
-                    Log.e(TAG, "Could not register activity transitions", e2)
+                    DriveMonitorService.start(context)
+                } catch (e: Exception) {
+                    // Fallback: register transitions directly
+                    Log.w(TAG, "Could not start monitor service, registering transitions directly", e)
+                    try {
+                        ActivityTransitionHelper.registerTransitions(context)
+                    } catch (e2: Exception) {
+                        Log.e(TAG, "Could not register activity transitions", e2)
+                    }
                 }
             }
         }
