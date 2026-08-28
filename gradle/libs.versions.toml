@@ -1,7 +1,7 @@
 [versions]
-agp = "8.13.2"
-kotlin = "1.9.24"
-ksp = "1.9.24-1.0.20"
+agp = "9.3.1"
+kotlin = "2.1.0"
+ksp = "2.1.0-1.0.29"
 composeBom = "2024.05.00"
 composeCompiler = "1.5.14"
 room = "2.6.1"
@@ -40,3 +40,4 @@ maps-compose = { group = "com.google.maps.android", name = "maps-compose", versi
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

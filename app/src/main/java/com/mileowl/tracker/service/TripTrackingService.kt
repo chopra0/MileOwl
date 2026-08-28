@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.location.Location
 import android.net.Uri
 import android.os.Build
@@ -103,7 +104,23 @@ class TripTrackingService : Service() {
         lastLocation = null
 
         val notification = buildNotification(0.0)
-        startForeground(Constants.TRACKING_NOTIFICATION_ID, notification)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    Constants.TRACKING_NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+                )
+            } else {
+                startForeground(Constants.TRACKING_NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start foreground tracking service", e)
+            DebugLog.log(applicationContext, "Trip", "❌ Tracking FGS error: ${e.message}")
+            _isTracking.value = false
+            stopSelf()
+            return
+        }
 
         // Create a new trip record
         serviceScope.launch {

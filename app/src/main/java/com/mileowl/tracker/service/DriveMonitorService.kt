@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -52,7 +53,26 @@ class DriveMonitorService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         isRunning = true
-        startForeground(Constants.MONITOR_NOTIFICATION_ID, buildNotification())
+        
+        val notification = buildNotification()
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    Constants.MONITOR_NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+                )
+            } else {
+                startForeground(Constants.MONITOR_NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start foreground service", e)
+            DebugLog.log(this, "Watcher", "❌ Foreground error: ${e.message}")
+            // If we can't start foreground, we can't run reliably as a service on 14+
+            isRunning = false
+            stopSelf()
+            return START_NOT_STICKY
+        }
 
         // Register for drive detection
         try {
