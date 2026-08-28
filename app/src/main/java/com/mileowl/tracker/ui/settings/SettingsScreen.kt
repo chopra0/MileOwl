@@ -603,7 +603,7 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            val deviceInfo = "App: MileOwl v2.1.0\n" +
+                            val deviceInfo = "App: MileOwl v2.4.0\n" +
                                 "Device: ${Build.MANUFACTURER} ${Build.MODEL}\n" +
                                 "Android: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})\n\n" +
                                 "Feedback:\n"
@@ -673,7 +673,7 @@ fun SettingsScreen(
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "🦉 MileOwl v2.1.0",
+                    text = "🦉 MileOwl v2.4.0",
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium
                 )

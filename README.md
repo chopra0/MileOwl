@@ -68,7 +68,7 @@ No subscriptions. No ads. All data stays on your device.
 
 ### Prerequisites
 - Android Studio Hedgehog (2023.1.1) or later
-- Android SDK 35
+- Android SDK 36
 - JDK 17
 
 ### Steps
