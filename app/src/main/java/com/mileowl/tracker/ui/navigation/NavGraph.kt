@@ -92,117 +92,116 @@ fun MileOwlNavGraph() {
         ) {
             androidx.compose.material3.CircularProgressIndicator()
         }
-        return
-    }
+    } else {
+        val showBottomBar = currentDestination?.route in bottomNavItems.map { it.route }
 
-    val showBottomBar = currentDestination?.route in bottomNavItems.map { it.route }
+        // Determine start destination based on onboarding state
+        val startDestination = if (onboardingComplete == true) NavRoutes.HOME else NavRoutes.PERMISSION
 
-    // Determine start destination based on onboarding state
-    val startDestination = if (onboardingComplete == true) NavRoutes.HOME else NavRoutes.PERMISSION
+        Scaffold(
+            bottomBar = {
+                if (showBottomBar) {
+                    NavigationBar {
+                        bottomNavItems.forEach { item ->
+                            val selected = currentDestination?.hierarchy?.any {
+                                it.route == item.route
+                            } == true
 
-    Scaffold(
-        bottomBar = {
-            if (showBottomBar) {
-                NavigationBar {
-                    bottomNavItems.forEach { item ->
-                        val selected = currentDestination?.hierarchy?.any {
-                            it.route == item.route
-                        } == true
-
-                        NavigationBarItem(
-                            icon = {
-                                Icon(
-                                    imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-                                    contentDescription = item.label
-                                )
-                            },
-                            label = { Text(item.label) },
-                            selected = selected,
-                            onClick = {
-                                navController.navigate(item.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                            NavigationBarItem(
+                                icon = {
+                                    Icon(
+                                        imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+                                        contentDescription = item.label
+                                    )
+                                },
+                                label = { Text(item.label) },
+                                selected = selected,
+                                onClick = {
+                                    navController.navigate(item.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
-        }
-    ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = startDestination,
-            modifier = Modifier.padding(innerPadding)
-        ) {
-            composable(NavRoutes.PERMISSION) {
-                PermissionScreen(
-                    onSetupComplete = {
-                        scope.launch {
-                            prefs.setOnboardingComplete(true)
+        ) { innerPadding ->
+            NavHost(
+                navController = navController,
+                startDestination = startDestination,
+                modifier = Modifier.padding(innerPadding)
+            ) {
+                composable(NavRoutes.PERMISSION) {
+                    PermissionScreen(
+                        onSetupComplete = {
+                            scope.launch {
+                                prefs.setOnboardingComplete(true)
+                            }
+                            navController.navigate(NavRoutes.HOME) {
+                                popUpTo(NavRoutes.PERMISSION) { inclusive = true }
+                            }
                         }
-                        navController.navigate(NavRoutes.HOME) {
-                            popUpTo(NavRoutes.PERMISSION) { inclusive = true }
+                    )
+                }
+
+                composable(NavRoutes.HOME) {
+                    HomeScreen(
+                        onNavigateToTrips = {
+                            navController.navigate(NavRoutes.TRIPS)
+                        },
+                        onNavigateToTripDetail = { tripId ->
+                            navController.navigate(NavRoutes.tripDetail(tripId))
+                        },
+                        onNavigateToFrequentDrives = {
+                            navController.navigate(NavRoutes.FREQUENT_DRIVES)
                         }
-                    }
-                )
-            }
+                    )
+                }
 
-            composable(NavRoutes.HOME) {
-                HomeScreen(
-                    onNavigateToTrips = {
-                        navController.navigate(NavRoutes.TRIPS)
-                    },
-                    onNavigateToTripDetail = { tripId ->
-                        navController.navigate(NavRoutes.tripDetail(tripId))
-                    },
-                    onNavigateToFrequentDrives = {
-                        navController.navigate(NavRoutes.FREQUENT_DRIVES)
-                    }
-                )
-            }
+                composable(NavRoutes.TRIPS) {
+                    TripsScreen(
+                        onTripClick = { tripId ->
+                            navController.navigate(NavRoutes.tripDetail(tripId))
+                        }
+                    )
+                }
 
-            composable(NavRoutes.TRIPS) {
-                TripsScreen(
-                    onTripClick = { tripId ->
-                        navController.navigate(NavRoutes.tripDetail(tripId))
-                    }
-                )
-            }
+                composable(
+                    route = NavRoutes.TRIP_DETAIL,
+                    arguments = listOf(navArgument("tripId") { type = NavType.LongType })
+                ) { backStackEntry ->
+                    val tripId = backStackEntry.arguments?.getLong("tripId") ?: return@composable
+                    TripDetailScreen(
+                        tripId = tripId,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
 
-            composable(
-                route = NavRoutes.TRIP_DETAIL,
-                arguments = listOf(navArgument("tripId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val tripId = backStackEntry.arguments?.getLong("tripId") ?: return@composable
-                TripDetailScreen(
-                    tripId = tripId,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
+                composable(NavRoutes.LOCATIONS) {
+                    SavedLocationsScreen()
+                }
 
-            composable(NavRoutes.LOCATIONS) {
-                SavedLocationsScreen()
-            }
+                composable(NavRoutes.REPORT) {
+                    ReportScreen()
+                }
 
-            composable(NavRoutes.REPORT) {
-                ReportScreen()
-            }
+                composable(NavRoutes.SETTINGS) {
+                    SettingsScreen()
+                }
 
-            composable(NavRoutes.SETTINGS) {
-                SettingsScreen()
-            }
-
-            composable(NavRoutes.FREQUENT_DRIVES) {
-                FrequentDrivesScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToTripDetail = { tripId ->
-                        navController.navigate(NavRoutes.tripDetail(tripId))
-                    }
-                )
+                composable(NavRoutes.FREQUENT_DRIVES) {
+                    FrequentDrivesScreen(
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateToTripDetail = { tripId ->
+                            navController.navigate(NavRoutes.tripDetail(tripId))
+                        }
+                    )
+                }
             }
         }
     }

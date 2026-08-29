@@ -60,10 +60,14 @@ class ActivityTransitionReceiver : BroadcastReceiver() {
         val serviceIntent = Intent(context, TripTrackingService::class.java).apply {
             action = Constants.ACTION_START_TRACKING
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(serviceIntent)
-        } else {
-            context.startService(serviceIntent)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+        } catch (e: Exception) {
+            DebugLog.log(context, "Tracking", "❌ Could not start tracking: ${e.message}")
         }
     }
 

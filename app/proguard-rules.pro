@@ -18,15 +18,19 @@
 # Keep repository
 -keep class com.mileowl.tracker.data.repository.** { *; }
 
-# Keep ViewModels
+# ViewModels
+-keepclassmembers class * extends androidx.lifecycle.ViewModel {
+    <init>(...);
+}
 -keep class com.mileowl.tracker.ui.**ViewModel { *; }
-
-# Compose
--keep class androidx.compose.material.icons.** { *; }
--keep class com.mileowl.tracker.ui.** { *; }
 
 # Navigation
 -keep class androidx.navigation.** { *; }
+-keep class com.mileowl.tracker.ui.navigation.** { *; }
+
+# Kotlin Serialization (if used in Nav)
+-keepattributes *Annotation*, EnclosingMethod, Signature
+-keep class kotlin.reflect.jvm.internal.** { *; }
 
 # Google Play Services
 -keep class com.google.android.gms.location.** { *; }
